@@ -1,0 +1,6 @@
+evals/*
+archive/*
+personal-docs/*
+node_modules/*
+troubleshooting/samples/*
+troubleshooting/api/api.integration.test.js

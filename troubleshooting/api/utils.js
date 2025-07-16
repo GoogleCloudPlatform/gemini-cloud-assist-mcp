@@ -1,0 +1,240 @@
+/*
+Copyright 2025 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/**
+ * @fileoverview Utilities for creating and modifying investigation payloads for
+ * the Gemini Cloud Assist API.
+ */
+
+import {
+    PRIMARY_USER_OBSERVATION_ID,
+    PROJECT_OBSERVATION_ID,
+} from './constants.js';
+
+
+/**
+ * A utility class to manage the various formats of investigation resource names.
+ *
+ * GCP Resource Name Format:
+ * `projects/{project}/locations/{location}/investigations/{investigation_id}/revisions/{revision_id}`
+ */
+export class InvestigationPath {
+    /**
+     * @param {string} projectId The Google Cloud Project ID.
+     * @param {string} [investigationId] The ID of a specific investigation.
+     * @param {string} [revisionId] The revision ID of a specific investigation.
+     */
+    constructor(projectId, investigationId, revisionId) {
+        if (!projectId) {
+            throw new Error("A projectId is required.");
+        }
+        this.projectId = projectId;
+        this.investigationId = investigationId;
+        this.revisionId = revisionId;
+        this.location = 'global'; // Assuming 'global' for now as it's hardcoded elsewhere.
+    }
+
+    /**
+     * Creates an InvestigationPath instance from a full resource name string.
+     * @param {string} resourceName The full GCP resource name.
+     * @returns {InvestigationPath | null} A new instance of InvestigationPath or null if parsing fails.
+     */
+    static fromInvestigationName(resourceName) {
+        if (!resourceName) return null;
+
+        const parts = resourceName.split('/');
+        if (parts.length < 2 || parts[0] !== 'projects') {
+            return null;
+        }
+
+        const projectId = parts[1];
+        let investigationId = null;
+        let revisionId = null;
+
+        const investigationIndex = parts.indexOf('investigations');
+        if (investigationIndex !== -1 && parts.length > investigationIndex + 1) {
+            investigationId = parts[investigationIndex + 1];
+        }
+
+        const revisionIndex = parts.indexOf('revisions');
+        if (revisionIndex !== -1 && parts.length > revisionIndex + 1) {
+            revisionId = parts[revisionIndex + 1];
+        }
+
+        return new InvestigationPath(projectId, investigationId, revisionId);
+    }
+
+    /**
+     * Returns the parent path for listing resources.
+     * Format: `projects/{projectId}/locations/{location}`
+     * @returns {string}
+     */
+    getParent() {
+        return `projects/${this.projectId}/locations/${this.location}`;
+    }
+
+    /**
+     * Returns the full investigation name.
+     * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}`
+     * @returns {string}
+     */
+    getInvestigationName() {
+        if (!this.investigationId) {
+            throw new Error("Investigation ID is not set.");
+        }
+        return `${this.getParent()}/investigations/${this.investigationId}`;
+    }
+
+    /**
+     * Returns the full revision name.
+     * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}/revisions/{revisionId}`
+     * @returns {string}
+     */
+    getRevisionName() {
+        if (!this.investigationId || !this.revisionId) {
+            throw new Error("Investigation ID and/or Revision ID are not set.");
+        }
+        return `${this.getInvestigationName()}/revisions/${this.revisionId}`;
+    }
+
+    /**
+     * Returns the project ID.
+     * @returns {string}
+     */
+    getProjectId() {
+        return this.projectId;
+    }
+
+    /**
+     * Returns the investigation ID.
+     * @returns {string | undefined}
+     */
+    getInvestigationId() {
+        return this.investigationId;
+    }
+}
+
+/**
+ * Creates the initial investigation object for the `create_investigation` tool.
+ *
+ * @param {string} title The title of the investigation.
+ * @param {string} projectId The Google Cloud Project ID.
+ * @param {string} issue_description A description of the issue.
+ * @param {string[]} relevant_resources A list of relevant resources.
+ * @param {string} start_time The start time of the issue in RFC3339 UTC "Zulu" format.
+ * @returns {object} The investigation object payload for the API.
+ */
+export function createInitialInvestigation(title, projectId, issue_description, relevant_resources, start_time) {
+    return {
+        title: title,
+        dataVersion: "2",
+        observations: {
+            [PROJECT_OBSERVATION_ID]: {
+                id: PROJECT_OBSERVATION_ID,
+                observerType: 'OBSERVER_TYPE_USER',
+                observationType: 'OBSERVATION_TYPE_STRUCTURED_INPUT',
+                text: projectId,
+            },
+            [PRIMARY_USER_OBSERVATION_ID]: {
+                id: PRIMARY_USER_OBSERVATION_ID,
+                observerType: 'OBSERVER_TYPE_USER',
+                observationType: 'OBSERVATION_TYPE_TEXT_DESCRIPTION',
+                text: issue_description,
+                relevantResources: relevant_resources,
+                timeRanges: [{
+                    startTime: start_time
+                }],
+            }
+        },
+    };
+}
+
+/**
+ * Creates a new revision payload from an existing investigation by adding a new
+ * user observation.
+ *
+ * This function takes the latest revision of an investigation and appends the new
+ * observation text to the primary user observation entry. It also merges any new
+ * relevant resources into the same entry. This approach maintains a running log
+ * of user interactions within a single observation block.
+ *
+ * The function performs the following steps:
+ * 1. Creates a deep copy of the incoming payload to avoid side effects.
+ * 2. Prunes all non-user-generated observations from the previous revision.
+ * 3. Ensures a primary user observation entry exists, creating one if necessary.
+ * 4. Appends the new `observationText` to the existing text in the primary
+ *    observation, separated by a newline.
+ * 5. Merges the `relevantResources` into the primary observation, avoiding
+ *    duplicates.
+ * 6. Wraps the modified payload in a `snapshot` object, as required by the
+ *    `revisions.create` API method.
+ *
+ * @param {object} payload The existing investigation payload (latest revision).
+ * @param {string} observationText The new information or question from the user.
+ * @param {string[]} relevantResources A list of fully-resolved resource URIs
+ *   related to the new observation.
+ * @returns {object | null} The payload for the `revisions.create` API call,
+ *   or null if the input payload is invalid.
+ */
+export function getRevisionWithNewObservation(payload, observationText, relevantResources) {
+    if (!payload) {
+        console.error("No investigation payload found to add observation to.");
+        return null;
+    }
+
+    const newPayload = JSON.parse(JSON.stringify(payload));
+
+    if (!newPayload.observations) {
+        newPayload.observations = {};
+    }
+    const { observations } = newPayload;
+
+    // Prune all non-user observations.
+    for (const key in observations) {
+        if (observations[key].observerType !== 'OBSERVER_TYPE_USER') {
+            delete observations[key];
+        }
+    }
+
+    if (!observations[PRIMARY_USER_OBSERVATION_ID]) {
+        observations[PRIMARY_USER_OBSERVATION_ID] = {
+            id: PRIMARY_USER_OBSERVATION_ID,
+            observerType: 'OBSERVER_TYPE_USER',
+            observationType: 'OBSERVATION_TYPE_TEXT_DESCRIPTION',
+            text: '', // Start with empty text
+            relevantResources: [],
+        };
+    }
+
+    const primaryObs = observations[PRIMARY_USER_OBSERVATION_ID];
+    if (primaryObs.text) {
+        primaryObs.text += '\n\n';
+    }
+    primaryObs.text += `[User Observation]: ${observationText}`;
+
+
+    const existingResources = primaryObs.relevantResources || [];
+    for (const resource of relevantResources) {
+        if (!existingResources.includes(resource)) {
+            existingResources.push(resource);
+        }
+    }
+    primaryObs.relevantResources = existingResources;
+
+
+    // The API expects the modified payload to be wrapped in a "snapshot" field.
+    return { snapshot: newPayload };
+}

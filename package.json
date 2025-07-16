@@ -1,0 +1,22 @@
+{
+  "name": "gemini-cloud-assist-mcp",
+  "version": "1.0.0",
+  "displayName": "Gemini Cloud Assist MCP",
+  "type": "module",
+  "bin": "mcp-server.js",
+  "scripts": {
+    "start": "node mcp-server.js",
+    "test:utils_unit": "node troubleshooting/api/utils.test.js",
+    "test:formatting_utils_unit": "node troubleshooting/formatting_utils.test.js"
+  },
+  "keywords": [],
+  "author": "Google LLC",
+  "license": "Apache-2.0",
+  "description": "MCP Server for GCP environment understanding & troubleshooting using the Gemini Cloud Assist API.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
+    "google-auth-library": "^10.1.0",
+    "googleapis": "^152.0.0",
+    "zod": "^3.25.76"
+  }
+}

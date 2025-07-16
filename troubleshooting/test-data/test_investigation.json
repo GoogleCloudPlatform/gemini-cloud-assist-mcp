@@ -1,0 +1,275 @@
+{
+  "name": "projects/test-project/locations/global/investigations/8b1f9405-15b6-4830-b57e-2ff6a1dd5119",
+  "createTime": "2025-07-16T07:07:46.283246321Z",
+  "updateTime": "2025-07-16T07:08:41.733357185Z",
+  "revision": "projects/test-project/locations/global/investigations/8b1f9405-15b6-4830-b57e-2ff6a1dd5119/revisions/a297dba9-3e7d-4e12-8969-eb66d5d598ea",
+  "executionState": "INVESTIGATION_EXECUTION_STATE_COMPLETED",
+  "title": "[Gemini CLI Test] Test Investigation for GKE",
+  "observations": {
+    "user.input.text": {
+      "id": "user.input.text",
+      "observationType": "OBSERVATION_TYPE_TEXT_DESCRIPTION",
+      "observerType": "OBSERVER_TYPE_USER",
+      "text": "The 'default-pool' nodepool in our GKE cluster 'gke-cluster-123' is not scaling up as expected.",
+      "relevantResources": [
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool"
+      ]
+    },
+    "user.project": {
+      "id": "user.project",
+      "observationType": "OBSERVATION_TYPE_STRUCTURED_INPUT",
+      "observerType": "OBSERVER_TYPE_USER",
+      "text": "test-project"
+    },
+    "parameter.googleCloudRegion": {
+      "id": "parameter.googleCloudRegion",
+      "title": "Value for googleCloudRegion",
+      "observationType": "OBSERVATION_TYPE_STRUCTURED_INPUT",
+      "observerType": "OBSERVER_TYPE_AI",
+      "text": "us-east4",
+      "systemRelevanceScore": -1
+    },
+    "parameter.googleCloudLocation": {
+      "id": "parameter.googleCloudLocation",
+      "title": "Value for googleCloudLocation",
+      "observationType": "OBSERVATION_TYPE_STRUCTURED_INPUT",
+      "observerType": "OBSERVER_TYPE_AI",
+      "text": "us-east4",
+      "systemRelevanceScore": -1
+    },
+    "parameter.gkeClusterName": {
+      "id": "parameter.gkeClusterName",
+      "title": "Value for gkeClusterName",
+      "observationType": "OBSERVATION_TYPE_STRUCTURED_INPUT",
+      "observerType": "OBSERVER_TYPE_AI",
+      "text": "gke-cluster-123",
+      "systemRelevanceScore": -1
+    },
+    "signals.correlated_event_detail.b59c596c-aaea-4357-8d3a-63fc8345a577": {
+      "id": "signals.correlated_event_detail.b59c596c-aaea-4357-8d3a-63fc8345a577",
+      "timeRanges": [
+        {
+          "startTime": "2025-07-16T05:21:06.854060558Z",
+          "endTime": "2025-07-16T05:21:06.854060558Z"
+        }
+      ],
+      "title": "Nodepool default-pool scaling issues due to IP exhaustion",
+      "observationType": "OBSERVATION_TYPE_CLOUD_LOG",
+      "observerType": "OBSERVER_TYPE_SIGNALS",
+      "text": "The 'default-pool' nodepool in GKE cluster 'gke-cluster-123' failed to scale up due to IP Exhaustion.",
+      "data": {
+        "details": {
+          "query": "resource.type=gke_nodepool resource.labels.cluster_name=gke-cluster-123 resource.labels.location=us-east4 resource.labels.nodepool_name=default-pool resource.labels.project_id=test-project log_id(\"cloudaudit.googleapis.com/activity\") protoPayload.metadata.operationType=\"UPGRADE_NODES\" protoPayload.resourceName:*",
+          "summary": "There has been a recent node pool upgrade event for the cluster gke-cluster-123 in location us-east-4, which may have caused the node to fail.",
+          "playbook": ""
+        },
+        "name": "There are recently observed upgrade events for the nodes",
+        "raw_correlated_event": "{\"logName\":\"projects/test-project/logs/cloudaudit.googleapis.com%2Factivity\",\"operation\":{\"id\":\"operation-1752643218945-275162ba-3e24-4db7-93ca-46e11f196bd6\",\"last\":true,\"producer\":\"container.googleapis.com\"},\"protoPayload\":{\"@type\":\"type.googleapis.com/google.cloud.audit.AuditLog\",\"metadata\":{\"operationType\":\"UPGRADE_NODES\",\"requestID\":\"0x204e529303a0a772\"},\"methodName\":\"google.container.internal.ClusterManagerInternal.UpdateClusterInternal\",\"policyViolationInfo\":{\"orgPolicyViolationInfo\":{}},\"resourceLocation\":{\"currentLocations\":[\"us-east4\"]},\"resourceName\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\",\"serviceName\":\"container.googleapis.com\",\"status\":{\"code\":8,\"message\":\"\\n\\t- Google Compute Engine: The resource 'projects/test-project/global/instanceTemplates/gke-gke-cluster-123-default-pool-00555e95' was not found\\n\\t- Google Compute Engine: The resource 'projects/test-project/global/instanceTemplates/gke-gke-cluster-123-default-pool-92e2a866' was not found\\n\\t- requested resource is exhausted: waiting on IG: instance https://www.googleapis.com/compute/v1/projects/test-project/zones/us-east4-c/instances/gke-gke-cluster-123-default-pool-fa80c73b-jtrn is still CREATING. Last attempt error: [IP_SPACE_EXHAUSTED_WITH_DETAILS] Instance 'gke-gke-cluster-123-default-pool-fa80c73b-jtrn' creation failed: IP space of 'projects/test-project/regions/us-east4/subnetworks/small-subnet-009-8' is exhausted. Insufficient free IP addresses in the IP range '10.116.1.0/29'. Consider expanding the current IP range or selecting an alternative IP range. If this is a secondary range, consider adding an additional secondary range. - .\"}},\"receiveTimestamp\":\"2025-07-16T05:21:07.138602517Z\",\"resource\":{\"labels\":{\"cluster_name\":\"gke-cluster-123\",\"location\":\"us-east4\",\"nodepool_name\":\"default-pool\",\"project_id\":\"test-project\"},\"type\":\"gke_nodepool\"},\"severity\":\"ERROR\",\"timestamp\":\"2025-07-16T05:21:06.854060558Z\"}",
+        "correlated_event": "The 'default-pool' nodepool in GKE cluster 'gke-cluster-123' failed to scale up due to multiple issues. The system was unable to find the instance templates 'gke-gke-cluster-123-default-pool-00555e95' and 'gke-gke-cluster-123-default-pool-92e2a866'. Additionally, the creation of a new instance 'gke-gke-cluster-123-default-pool-fa80c73b-jtrn' failed due to IP address exhaustion in the 'small-subnet-009-8' subnet. The error message suggests expanding the current IP range or selecting an alternative IP range to resolve the IP exhaustion issue."
+      },
+      "dataUrls": {
+        "Correlated Event": "https://console.cloud.google.com/logs/query;query=resource.type%3Dgke_nodepool%20resource.labels.cluster_name%3Dgke-cluster-123%20resource.labels.location%3Dus-east4%20resource.labels.nodepool_name%3Ddefault-pool%20resource.labels.project_id%3Dtest-project%20log_id%2528%22cloudaudit.googleapis.com%2Factivity%22%2529%20protoPayload.metadata.operationType%3D%22UPGRADE_NODES%22%20protoPayload.resourceName%3A%2A;storageScope=storage,projects%2Ftest-project%2Flocations%2Fglobal%2Fbuckets%2F_Required%2Fviews%2F_AllLogs;startTime=2025-07-16T05:21:06.854060558+00:00;endTime=2025-07-16T05:21:06.864060558+00:00?project=test-project"
+      },
+      "relevantResources": [
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool"
+      ],
+      "systemRelevanceScore": 1.0
+    },
+    "signals.config_analysis_detail.15175774569453708172": {
+      "id": "signals.config_analysis_detail.15175774569453708172",
+      "timeRanges": [
+        {
+          "startTime": "2025-07-16T07:08:18.855745337Z",
+          "endTime": "2025-07-16T07:08:18.855745577Z"
+        }
+      ],
+      "title": "Node pool autoscaling limits reached",
+      "observationType": "OBSERVATION_TYPE_CONFIG_ANALYSIS",
+      "observerType": "OBSERVER_TYPE_SIGNALS",
+      "text": "The 'default-pool' node pool in the 'gke-cluster-123' cluster is configured with autoscaling enabled, a minimum node count of 1, and a maximum node count of 10. The nodepool's `initialNodeCount` is set to 10. If the current number of nodes is already at the maximum (10), the node pool will not scale up further, regardless of the demand. The nodepool was last updated at 2025-07-16 00:34:53 PDT.",
+      "data": {
+        "config_analysis": "The 'default-pool' node pool in the 'gke-cluster-123' cluster is configured with autoscaling enabled, a minimum node count of 1, and a maximum node count of 10. The nodepool's `initialNodeCount` is set to 10. If the current number of nodes is already at the maximum (10), the node pool will not scale up further, regardless of the demand. The nodepool was last updated at 2025-07-16 00:34:53 PDT."
+      },
+      "relevantResources": [
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool"
+      ],
+      "systemRelevanceScore": 0.5
+    },
+    "signals.correlated_event_detail.db760515-3eb6-40b6-a277-3cd2459c6420": {
+      "id": "signals.correlated_event_detail.db760515-3eb6-40b6-a277-3cd2459c6420",
+      "timeRanges": [
+        {
+          "startTime": "2025-07-16T03:39:11.906916450Z",
+          "endTime": "2025-07-16T05:53:27.997789045Z"
+        }
+      ],
+      "title": "Cluster Autoscaler: No Scale Down",
+      "observationType": "OBSERVATION_TYPE_CLOUD_LOG",
+      "observerType": "OBSERVER_TYPE_SIGNALS",
+      "text": "The Cluster Autoscaler logs indicate that it was unable to scale down nodes in the 'default-pool' nodepool of the 'gke-cluster-123' cluster. The reason provided is 'no.scale.down.node.no.place.to.move.pods', suggesting that there were no suitable nodes to which the pods could be moved. This could potentially block the autoscaler from scaling up the cluster if it needs to remove nodes to make room for new ones, and is relevant to the reported symptom of the nodepool not scaling up.",
+      "data": {
+        "details": {
+          "summary": "The mentioned node cannot scale down as there are existing pods on the node which cannot be moved. If customer wants autoscaler to scale down this node, they should modify the pod(s) spec on their YAML to allow it to move to another node.",
+          "playbook": "",
+          "query": "resource.type=k8s_cluster resource.labels.cluster_name=gke-cluster-123 resource.labels.location=us-east4 resource.labels.project_id=test-project log_id(\"container.googleapis.com/cluster-autoscaler-visibility\") jsonPayload.noDecisionStatus.noScaleDown.nodes.node.name=~\"[[:alnum:]_-]+\" jsonPayload.noDecisionStatus.noScaleDown.nodes.reason.messageId=\"no.scale.down.node.no.place.to.move.pods\" jsonPayload.noDecisionStatus.noScaleDown.nodes:*"
+        },
+        "name": "Pods that cannot be moved to other nodes preventing scaledown",
+        "raw_correlated_event": "{\"jsonPayload\":{\"noDecisionStatus\":{\"measureTime\":\"1752645207\",\"noScaleDown\":{\"nodes\":[{\"node\":{\"cpuRatio\":36,\"memRatio\":7,\"mig\":{\"name\":\"gke-gke-cluster-123-default-pool-f2021363-grp\",\"nodepool\":\"default-pool\",\"zone\":\"us-east4-a\"},\"name\":\"gke-gke-cluster-123-default-pool-f2021363-p6sv\"},\"reason\":{\"messageId\":\"no.scale.down.node.no.place.to.move.pods\"}}],\"nodesTotalCount\":1}}},\"logName\":\"projects/test-project/logs/container.googleapis.com%2Fcluster-autoscaler-visibility\",\"receiveTimestamp\":\"2025-07-16T05:53:29.04513427Z\",\"resource\":{\"labels\":{\"cluster_name\":\"gke-cluster-123\",\"location\":\"us-east4\",\"project_id\":\"test-project\"},\"type\":\"k8s_cluster\"},\"timestamp\":\"2025-07-16T05:53:27.997789045Z\"}\n{\"jsonPayload\":{\"noDecisionStatus\":{\"measureTime\":\"1752637151\",\"noScaleDown\":{\"nodes\":[{\"node\":{\"cpuRatio\":4,\"memRatio\":2,\"mig\":{\"name\":\"gke-gke-cluster-123-default-pool-fa80c73b-grp\",\"nodepool\":\"default-pool\",\"zone\":\"us-east4-c\"},\"name\":\"gke-gke-cluster-123-default-pool-fa80c73b-2vv6\"},\"reason\":{\"messageId\":\"no.scale.down.node.no.place.to.move.pods\"}}],\"nodesTotalCount\":1}}},\"logName\":\"projects/test-project/logs/container.googleapis.com%2Fcluster-autoscaler-visibility\",\"receiveTimestamp\":\"2025-07-16T03:39:12.292178252Z\",\"resource\":{\"labels\":{\"cluster_name\":\"gke-cluster-123\",\"location\":\"us-east4\",\"project_id\":\"test-project\"},\"type\":\"k8s_cluster\"},\"timestamp\":\"2025-07-16T03:39:11.90691645Z\"}",
+        "correlated_event": "The Cluster Autoscaler logs indicate that it was unable to scale down nodes in the 'default-pool' nodepool of the 'gke-cluster-123' cluster. The reason provided is 'no.scale.down.node.no.place.to.move.pods', suggesting that there were no suitable nodes to which the pods could be moved. This could potentially block the autoscaler from scaling up the cluster if it needs to remove nodes to make room for new ones, and is relevant to the reported symptom of the nodepool not scaling up."
+      },
+      "dataUrls": {
+        "Correlated Event": "https://console.cloud.google.com/logs/query;query=resource.type%3Dk8s_cluster%20resource.labels.cluster_name%3Dgke-cluster-123%20resource.labels.location%3Dus-east4%20resource.labels.project_id%3Dtest-project%20log_id%2528%22container.googleapis.com%2Fcluster-autoscaler-visibility%22%2529%20jsonPayload.noDecisionStatus.noScaleDown.nodes.node.name%3D~%22%5B%5B%3Aalnum%3A%5D_-%5D%2B%22%20jsonPayload.noDecisionStatus.noScaleDown.nodes.reason.messageId%3D%22no.scale.down.node.no.place.to.move.pods%22%20jsonPayload.noDecisionStatus.noScaleDown.nodes%3A%2A;storageScope=storage,projects%2Ftest-project%2Flocations%2Fglobal%2Fbuckets%2F_Default%2Fviews%2F_AllLogs;startTime=2025-07-16T03:39:11.90691645+00:00;endTime=2025-07-16T05:53:28.007789045+00:00?project=test-project"
+      },
+      "baseObservations": [
+        "signals.related_resources"
+      ],
+      "relevantResources": [
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123"
+      ],
+      "systemRelevanceScore": 0.5
+    },
+    "signals.correlated_event_detail.e955292b-b2aa-493e-aa90-4d559d61de91": {
+      "id": "signals.correlated_event_detail.e955292b-b2aa-493e-aa90-4d559d61de91",
+      "timeRanges": [
+        {
+          "startTime": "2025-07-16T05:21:06.854060558Z",
+          "endTime": "2025-07-16T05:21:06.854060558Z"
+        }
+      ],
+      "title": "Nodepool default-pool scaling issues due to IP exhaustion",
+      "observationType": "OBSERVATION_TYPE_CLOUD_LOG",
+      "observerType": "OBSERVER_TYPE_SIGNALS",
+      "text": "The 'default-pool' nodepool in GKE cluster 'gke-cluster-123' failed to scale up due to multiple issues. The system was unable to find the instance templates 'gke-gke-cluster-123-default-pool-00555e95' and 'gke-gke-cluster-123-default-pool-92e2a866'. Additionally, the creation of a new instance 'gke-gke-cluster-123-default-pool-fa80c73b-jtrn' failed due to IP address exhaustion in the 'small-subnet-009-8' subnet. The error message suggests expanding the current IP range or selecting an alternative IP range to resolve the IP exhaustion issue.",
+      "data": {
+        "details": {
+          "playbook": "",
+          "query": "resource.type=gke_nodepool resource.labels.cluster_name=gke-cluster-123 resource.labels.location=us-east4 resource.labels.nodepool_name=default-pool resource.labels.project_id=test-project log_id(\"cloudaudit.googleapis.com/activity\") protoPayload.methodName:(\"UpdateNodePool\" OR \"UpdateClusterInternal\") protoPayload.metadata.operationType=\"UPGRADE_NODES\" protoPayload.metadata.operationType:*",
+          "summary": ""
+        },
+        "name": "To check if any of the GKE node pools have been recently auto-upgraded",
+        "raw_correlated_event": "{\"logName\":\"projects/test-project/logs/cloudaudit.googleapis.com%2Factivity\",\"operation\":{\"id\":\"operation-1752643218945-275162ba-3e24-4db7-93ca-46e11f196bd6\",\"last\":true,\"producer\":\"container.googleapis.com\"},\"protoPayload\":{\"@type\":\"type.googleapis.com/google.cloud.audit.AuditLog\",\"metadata\":{\"operationType\":\"UPGRADE_NODES\",\"requestID\":\"0x204e529303a0a772\"},\"methodName\":\"google.container.internal.ClusterManagerInternal.UpdateClusterInternal\",\"policyViolationInfo\":{\"orgPolicyViolationInfo\":{}},\"resourceLocation\":{\"currentLocations\":[\"us-east4\"]},\"resourceName\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\",\"serviceName\":\"container.googleapis.com\",\"status\":{\"code\":8,\"message\":\"\\n\\t- Google Compute Engine: The resource 'projects/test-project/global/instanceTemplates/gke-gke-cluster-123-default-pool-00555e95' was not found\\n\\t- Google Compute Engine: The resource 'projects/test-project/global/instanceTemplates/gke-gke-cluster-123-default-pool-92e2a866' was not found\\n\\t- requested resource is exhausted: waiting on IG: instance https://www.googleapis.com/compute/v1/projects/test-project/zones/us-east4-c/instances/gke-gke-cluster-123-default-pool-fa80c73b-jtrn is still CREATING. Last attempt error: [IP_SPACE_EXHAUSTED_WITH_DETAILS] Instance 'gke-gke-cluster-123-default-pool-fa80c73b-jtrn' creation failed: IP space of 'projects/test-project/regions/us-east4/subnetworks/small-subnet-009-8' is exhausted. Insufficient free IP addresses in the IP range '10.116.1.0/29'. Consider expanding the current IP range or selecting an alternative IP range. If this is a secondary range, consider adding an additional secondary range. - .\"}},\"receiveTimestamp\":\"2025-07-16T05:21:07.138602517Z\",\"resource\":{\"labels\":{\"cluster_name\":\"gke-cluster-123\",\"location\":\"us-east4\",\"nodepool_name\":\"default-pool\",\"project_id\":\"test-project\"},\"type\":\"gke_nodepool\"},\"severity\":\"ERROR\",\"timestamp\":\"2025-07-16T05:21:06.854060558Z\"}",
+        "correlated_event": "The 'default-pool' nodepool in GKE cluster 'gke-cluster-123' failed to scale up due to multiple issues. The system was unable to find the instance templates 'gke-gke-cluster-123-default-pool-00555e95' and 'gke-gke-cluster-123-default-pool-92e2a866'. Additionally, the creation of a new instance 'gke-gke-cluster-123-default-pool-fa80c73b-jtrn' failed due to IP address exhaustion in the 'small-subnet-009-8' subnet. The error message suggests expanding the current IP range or selecting an alternative IP range to resolve the IP exhaustion issue."
+      },
+      "dataUrls": {
+        "Correlated Event": "https://console.cloud.google.com/logs/query;query=resource.type%3Dgke_nodepool%20resource.labels.cluster_name%3Dgke-cluster-123%20resource.labels.location%3Dus-east4%20resource.labels.nodepool_name%3Ddefault-pool%20resource.labels.project_id%3Dtest-project%20log_id%2528%22cloudaudit.googleapis.com%2Factivity%22%2529%20protoPayload.methodName%3A%2528%22UpdateNodePool%22%20OR%20%22UpdateClusterInternal%22%2529%20protoPayload.metadata.operationType%3D%22UPGRADE_NODES%22%20protoPayload.metadata.operationType%3A%2A;storageScope=storage,projects%2Ftest-project%2Flocations%2Fglobal%2Fbuckets%2F_Required%2Fviews%2F_AllLogs;startTime=2025-07-16T05:21:06.854060558+00:00;endTime=2025-07-16T05:21:06.864060558+00:00?project=test-project"
+      },
+      "relevantResources": [
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool"
+      ],
+      "systemRelevanceScore": 0.83
+    },
+    "signals.correlated_event_detail.e87eeba1-7356-45da-9092-9426f7949e8e": {
+      "id": "signals.correlated_event_detail.e87eeba1-7356-45da-9092-9426f7949e8e",
+      "timeRanges": [
+        {
+          "startTime": "2025-07-16T03:39:04.089771446Z",
+          "endTime": "2025-07-16T05:53:18.111638275Z"
+        }
+      ],
+      "title": "Nodepool Scaling Issues: IP Exhaustion & Template Missing",
+      "observationType": "OBSERVATION_TYPE_CLOUD_LOG",
+      "observerType": "OBSERVER_TYPE_SIGNALS",
+      "text": "The 'default-pool' nodepool in GKE cluster 'gke-cluster-123' experienced scaling issues. Attempts to resize the nodepool to 10 nodes were initiated around 03:39 and 05:53 UTC, but a node upgrade operation failed at 05:21 UTC due to two primary reasons: missing instance templates ('gke-gke-cluster-123-default-pool-00555e95' and 'gke-gke-cluster-123-default-pool-92e2a866') and IP address exhaustion within the 'small-subnet-009-8' subnet. The error message indicates insufficient free IP addresses in the range '10.116.1.0/29', suggesting the subnet needs expansion or an alternative IP range should be selected.",
+      "data": {
+        "correlated_event": "The 'default-pool' nodepool in GKE cluster 'gke-cluster-123' experienced scaling issues. Attempts to resize the nodepool to 10 nodes were initiated around 03:39 and 05:53 UTC, but a node upgrade operation failed at 05:21 UTC due to two primary reasons: missing instance templates ('gke-gke-cluster-123-default-pool-00555e95' and 'gke-gke-cluster-123-default-pool-92e2a866') and IP address exhaustion within the 'small-subnet-009-8' subnet. The error message indicates insufficient free IP addresses in the range '10.116.1.0/29', suggesting the subnet needs expansion or an alternative IP range should be selected.",
+        "details": {
+          "summary": "",
+          "playbook": "",
+          "query": "resource.type=gke_nodepool resource.labels.cluster_name=gke-cluster-123 resource.labels.location=us-east4 resource.labels.nodepool_name=default-pool resource.labels.project_id=test-project resource.type=gke_nodepool log_id(cloudaudit.googleapis.com/activity)\n(\n    protoPayload.methodName=(\n        google.container.internal.ClusterManagerInternal.UpdateClusterInternal OR\n        google.container.internal.ClusterManagerInternal.RepairNodePool\n    )\n) OR (\n    protoPayload.methodName=(\n        google.container.v1beta1.ClusterManager.UpdateNodePool OR\n        google.container.v1.ClusterManager.UpdateNodePool OR\n        google.container.v1beta1.ClusterManager.SetNodePoolSize OR\n        google.container.v1.ClusterManager.SetNodePoolSize OR\n        google.container.v1beta1.ClusterManager.SetNodePoolManagement OR\n        google.container.v1.ClusterManager.SetNodePoolManagement OR\n        google.container.v1beta1.ClusterManager.SetNodePoolAutoscaling OR\n        google.container.v1.ClusterManager.SetNodePoolAutoscaling\n    )\n    operation.first=true\n)"
+        },
+        "name": "Node pool update",
+        "raw_correlated_event": "{\"logName\":\"projects/test-project/logs/cloudaudit.googleapis.com%2Factivity\",\"operation\":{\"first\":true,\"id\":\"operation-1752645197991-051c99e9-088d-45ae-8c8a-d9822f55fb71\",\"producer\":\"container.googleapis.com\"},\"protoPayload\":{\"@type\":\"type.googleapis.com/google.cloud.audit.AuditLog\",\"authenticationInfo\":{\"principalEmail\":\"1072964481364-compute@developer.gserviceaccount.com\",\"principalSubject\":\"serviceAccount:1072964481364-compute@developer.gserviceaccount.com\",\"serviceAccountDelegationInfo\":[{\"firstPartyPrincipal\":{\"principalEmail\":\"service-1072964481364@compute-system.iam.gserviceaccount.com\"}}]},\"authorizationInfo\":[{\"granted\":true,\"permission\":\"container.clusters.update\",\"permissionType\":\"ADMIN_WRITE\",\"resource\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123\",\"resourceAttributes\":{\"name\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123\",\"service\":\"container.googleapis.com\",\"type\":\"container.googleapis.com/Cluster\"}}],\"methodName\":\"google.container.v1.ClusterManager.SetNodePoolSize\",\"policyViolationInfo\":{\"orgPolicyViolationInfo\":{}},\"request\":{\"@type\":\"type.googleapis.com/google.container.v1alpha1.SetNodePoolSizeRequest\",\"name\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\",\"nodeCount\":10},\"requestMetadata\":{\"callerIp\":\"35.188.239.82\",\"callerSuppliedUserAgent\":\"google-cloud-sdk gcloud/503.0.0 command/gcloud.container.clusters.resize invocation-id/398c4dc1557e43f9ae9c062464ec2b44 environment/GCE environment-version/None client-os/LINUX client-os-ver/5.10.0 client-pltf-arch/x86_64 interactive/False from-script/False python/3.11.9 term/vt220 (Linux 5.10.0-33-cloud-amd64),gzip(gfe)\",\"destinationAttributes\":{},\"requestAttributes\":{}},\"resourceLocation\":{\"currentLocations\":[\"us-east4\"]},\"resourceName\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\",\"response\":{\"@type\":\"type.googleapis.com/google.container.v1alpha1.Operation\",\"name\":\"operation-1752645197991-051c99e9-088d-45ae-8c8a-d9822f55fb71\",\"operationType\":\"SET_NODE_POOL_SIZE\",\"selfLink\":\"https://container.googleapis.com/v1alpha1/projects/1072964481364/locations/us-east4/operations/operation-1752645197991-051c99e9-088d-45ae-8c8a-d9822f55fb71\",\"startTime\":\"2025-07-16T05:53:17.991822654Z\",\"status\":\"PENDING\",\"targetLink\":\"https://container.googleapis.com/v1alpha1/projects/1072964481364/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\"},\"serviceName\":\"container.googleapis.com\"},\"receiveTimestamp\":\"2025-07-16T05:53:18.296000521Z\",\"resource\":{\"labels\":{\"cluster_name\":\"gke-cluster-123\",\"location\":\"us-east4\",\"nodepool_name\":\"default-pool\",\"project_id\":\"test-project\"},\"type\":\"gke_nodepool\"},\"severity\":\"NOTICE\",\"timestamp\":\"2025-07-16T05:53:18.111638275Z\"}\n{\"logName\":\"projects/test-project/logs/cloudaudit.googleapis.com%2Factivity\",\"operation\":{\"id\":\"operation-1752643218945-275162ba-3e24-4db7-93ca-46e11f196bd6\",\"last\":true,\"producer\":\"container.googleapis.com\"},\"protoPayload\":{\"@type\":\"type.googleapis.com/google.cloud.audit.AuditLog\",\"metadata\":{\"operationType\":\"UPGRADE_NODES\",\"requestID\":\"0x204e529303a0a772\"},\"methodName\":\"google.container.internal.ClusterManagerInternal.UpdateClusterInternal\",\"policyViolationInfo\":{\"orgPolicyViolationInfo\":{}},\"resourceLocation\":{\"currentLocations\":[\"us-east4\"]},\"resourceName\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\",\"serviceName\":\"container.googleapis.com\",\"status\":{\"code\":8,\"message\":\"\\n\\t- Google Compute Engine: The resource 'projects/test-project/global/instanceTemplates/gke-gke-cluster-123-default-pool-00555e95' was not found\\n\\t- Google Compute Engine: The resource 'projects/test-project/global/instanceTemplates/gke-gke-cluster-123-default-pool-92e2a866' was not found\\n\\t- requested resource is exhausted: waiting on IG: instance https://www.googleapis.com/compute/v1/projects/test-project/zones/us-east4-c/instances/gke-gke-cluster-123-default-pool-fa80c73b-jtrn is still CREATING. Last attempt error: [IP_SPACE_EXHAUSTED_WITH_DETAILS] Instance 'gke-gke-cluster-123-default-pool-fa80c73b-jtrn' creation failed: IP space of 'projects/test-project/regions/us-east4/subnetworks/small-subnet-009-8' is exhausted. Insufficient free IP addresses in the IP range '10.116.1.0/29'. Consider expanding the current IP range or selecting an alternative IP range. If this is a secondary range, consider adding an additional secondary range. - .\"}},\"receiveTimestamp\":\"2025-07-16T05:21:07.138602517Z\",\"resource\":{\"labels\":{\"cluster_name\":\"gke-cluster-123\",\"location\":\"us-east4\",\"nodepool_name\":\"default-pool\",\"project_id\":\"test-project\"},\"type\":\"gke_nodepool\"},\"severity\":\"ERROR\",\"timestamp\":\"2025-07-16T05:21:06.854060558Z\"}\n{\"logName\":\"projects/test-project/logs/cloudaudit.googleapis.com%2Factivity\",\"operation\":{\"first\":true,\"id\":\"operation-1752637143865-685abed3-1c03-4707-8e77-04103ce87d7d\",\"producer\":\"container.googleapis.com\"},\"protoPayload\":{\"@type\":\"type.googleapis.com/google.cloud.audit.AuditLog\",\"authenticationInfo\":{\"principalEmail\":\"1072964481364-compute@developer.gserviceaccount.com\",\"principalSubject\":\"serviceAccount:1072964481364-compute@developer.gserviceaccount.com\",\"serviceAccountDelegationInfo\":[{\"firstPartyPrincipal\":{\"principalEmail\":\"service-1072964481364@compute-system.iam.gserviceaccount.com\"}}]},\"authorizationInfo\":[{\"granted\":true,\"permission\":\"container.clusters.update\",\"permissionType\":\"ADMIN_WRITE\",\"resource\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123\",\"resourceAttributes\":{\"name\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123\",\"service\":\"container.googleapis.com\",\"type\":\"container.googleapis.com/Cluster\"}}],\"methodName\":\"google.container.v1.ClusterManager.SetNodePoolSize\",\"policyViolationInfo\":{\"orgPolicyViolationInfo\":{}},\"request\":{\"@type\":\"type.googleapis.com/google.container.v1alpha1.SetNodePoolSizeRequest\",\"name\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\",\"nodeCount\":10},\"requestMetadata\":{\"callerIp\":\"35.188.239.82\",\"callerSuppliedUserAgent\":\"google-cloud-sdk gcloud/503.0.0 command/gcloud.container.clusters.resize invocation-id/b5369010d93a43c99db8534549a78499 environment/GCE environment-version/None client-os/LINUX client-os-ver/5.10.0 client-pltf-arch/x86_64 interactive/False from-script/False python/3.11.9 term/vt220 (Linux 5.10.0-33-cloud-amd64),gzip(gfe)\",\"destinationAttributes\":{},\"requestAttributes\":{}},\"resourceLocation\":{\"currentLocations\":[\"us-east4\"]},\"resourceName\":\"projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\",\"response\":{\"@type\":\"type.googleapis.com/google.container.v1alpha1.Operation\",\"name\":\"operation-1752637143865-685abed3-1c03-4707-8e77-04103ce87d7d\",\"operationType\":\"SET_NODE_POOL_SIZE\",\"selfLink\":\"https://container.googleapis.com/v1alpha1/projects/1072964481364/locations/us-east4/operations/operation-1752637143865-685abed3-1c03-4707-8e77-04103ce87d7d\",\"startTime\":\"2025-07-16T03:39:03.865049229Z\",\"status\":\"PENDING\",\"targetLink\":\"https://container.googleapis.com/v1alpha1/projects/1072964481364/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool\"},\"serviceName\":\"container.googleapis.com\"},\"receiveTimestamp\":\"2025-07-16T03:39:04.254178509Z\",\"resource\":{\"labels\":{\"cluster_name\":\"gke-cluster-123\",\"location\":\"us-east4\",\"nodepool_name\":\"default-pool\",\"project_id\":\"test-project\"},\"type\":\"gke_nodepool\"},\"severity\":\"NOTICE\",\"timestamp\":\"2025-07-16T03:39:04.089771446Z\"}"
+      },
+      "dataUrls": {
+        "Correlated Event": "https://console.cloud.google.com/logs/query;query=resource.type%3Dgke_nodepool%20resource.labels.cluster_name%3Dgke-cluster-123%20resource.labels.location%3Dus-east4%20resource.labels.nodepool_name%3Ddefault-pool%20resource.labels.project_id%3Dtest-project%20resource.type%3Dgke_nodepool%20log_id%2528cloudaudit.googleapis.com%2Factivity%2529%0A%2528%0A%20%20%20%20protoPayload.methodName%3D%2528%0A%20%20%20%20%20%20%20%20google.container.internal.ClusterManagerInternal.UpdateClusterInternal%20OR%0A%20%20%20%20%20%20%20%20google.container.internal.ClusterManagerInternal.RepairNodePool%0A%20%20%20%20%2529%0A%2529%20OR%20%2528%0A%20%20%20%20protoPayload.methodName%3D%2528%0A%20%20%20%20%20%20%20%20google.container.v1beta1.ClusterManager.UpdateNodePool%20OR%0A%20%20%20%20%20%20%20%20google.container.v1.ClusterManager.UpdateNodePool%20OR%0A%20%20%20%20%20%20%20%20google.container.v1beta1.ClusterManager.SetNodePoolSize%20OR%0A%20%20%20%20%20%20%20%20google.container.v1.ClusterManager.SetNodePoolSize%20OR%0A%20%20%20%20%20%20%20%20google.container.v1beta1.ClusterManager.SetNodePoolManagement%20OR%0A%20%20%20%20%20%20%20%20google.container.v1.ClusterManager.SetNodePoolManagement%20OR%0A%20%20%20%20%20%20%20%20google.container.v1beta1.ClusterManager.SetNodePoolAutoscaling%20OR%0A%20%20%20%20%20%20%20%20google.container.v1.ClusterManager.SetNodePoolAutoscaling%0A%20%20%20%20%2529%0A%20%20%20%20operation.first%3Dtrue%0A%2529;storageScope=storage,projects%2Ftest-project%2Flocations%2Fglobal%2Fbuckets%2F_Required%2Fviews%2F_AllLogs;startTime=2025-07-16T03:39:04.089771446+00:00;endTime=2025-07-16T05:53:18.121638275+00:00?project=test-project"
+      },
+      "relevantResources": [
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool"
+      ],
+      "systemRelevanceScore": 0.83
+    },
+    "signals.discovered_resources": {
+      "id": "signals.discovered_resources",
+      "title": "Discovered resources",
+      "observationType": "OBSERVATION_TYPE_RELATED_RESOURCES",
+      "observerType": "OBSERVER_TYPE_SIGNALS",
+      "relevantResources": [
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123",
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123/nodePools/default-pool",
+        "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123/k8s/namespaces/default/pods/ubuntu-123"
+      ],
+      "systemRelevanceScore": 0.5
+    },
+    "diagnostics.gke_cluster_autoscaler.6": {
+      "id": "diagnostics.gke_cluster_autoscaler.6",
+      "title": "Check for \"scale.up.error.ip.space.exhausted\" log entries",
+      "observationType": "OBSERVATION_TYPE_COMPOSITE",
+      "observerType": "OBSERVER_TYPE_DIAGNOSTICS",
+      "text": "The scaleUp event failed because the cluster doesn't have enough unallocated IP address space to use to add new nodes or\nPods.\nExample log entry that would help identify involved objects:\n\n{\n  \"insertId\": \"6851a18a-81dd-4b3f-8847-81211abd44ea@a1\",\n  \"jsonPayload\": {\n    \"resultInfo\": {\n      \"results\": [\n        {\n          \"eventId\": \"7e88c5bc-74cf-40f2-953b-08c498fec49d\",\n          \"errorMsg\": {\n            \"messageId\": \"scale.up.error.ip.space.exhausted\",\n            \"parameters\": [\n              \"https://www.googleapis.com/compute/v1/projects/test-project/zones/us-east4-b/instanceGroups/gke-gke-cluster-123-default-pool-d99170bc-grp\"\n            ]\n          }\n        },\n        {\n          \"errorMsg\": {\n            \"messageId\": \"scale.up.error.ip.space.exhausted\",\n            \"parameters\": [\n              \"https://www.googleapis.com/compute/v1/projects/test-project/zones/us-east4-c/instanceGroups/gke-gke-cluster-123-default-pool-fa80c73b-grp\"\n            ]\n          },\n          \"eventId\": \"7e88c5bc-74cf-40f2-953b-08c498fec49d\"\n        },\n        {\n          \"eventId\": \"7e88c5bc-74cf-40f2-953b-08c498fec49d\",\n          \"errorMsg\": {\n            \"parameters\": [\n              \"https://www.googleapis.com/compute/v1/projects/test-project/zones/us-east4-a/instanceGroups/gke-gke-cluster-123-default-pool-f2021363-grp\"\n            ],\n            \"messageId\": \"scale.up.error.ip.space.exhausted\"\n          }\n        }\n      ],\n      \"measureTime\": \"1752621780\"\n    }\n  },\n  \"resource\": {\n    \"type\": \"k8s_cluster\",\n    \"labels\": {\n      \"project_id\": \"test-project\",\n      \"cluster_name\": \"gke-cluster-123\",\n      \"location\": \"us-east4\"\n    }\n  },\n  \"timestamp\": \"2025-07-15T23:23:02.971571151Z\",\n  \"logName\": \"projects/test-project/logs/container.googleapis.com%2Fcluster-autoscaler-visibility\",\n  \"receiveTimestamp\": \"2025-07-15T23:23:03.214842931Z\"\n}\n\n**Remediation**\n\nRefer to the troubleshooting steps to address the lack of IP address space for the nodes or pods.\n<https://cloud.google.com/kubernetes-engine/docs/how-to/alias-ips#not_enough_space>",
+      "systemRelevanceScore": 0.7
+    },
+    "diagnostics.gke_cluster_autoscaler.12": {
+      "id": "diagnostics.gke_cluster_autoscaler.12",
+      "title": "Check for \"no.scale.down.node.no.place.to.move.pods\" log entries",
+      "observationType": "OBSERVATION_TYPE_COMPOSITE",
+      "observerType": "OBSERVER_TYPE_DIAGNOSTICS",
+      "text": "The scaleDown event failed because there's no place to move Pods.\nExample log entry that would help identify involved objects:\n\n{\n  \"insertId\": \"581b577c-cc42-445e-a233-838bedad9142@a1\",\n  \"jsonPayload\": {\n    \"noDecisionStatus\": {\n      \"noScaleDown\": {\n        \"nodesTotalCount\": 1,\n        \"nodes\": [\n          {\n            \"node\": {\n              \"mig\": {\n                \"zone\": \"us-east4-c\",\n                \"name\": \"gke-gke-cluster-123-default-pool-fa80c73b-grp\",\n                \"nodepool\": \"default-pool\"\n              },\n              \"cpuRatio\": 4,\n              \"memRatio\": 2,\n              \"name\": \"gke-gke-cluster-123-default-pool-fa80c73b-2vv6\"\n            },\n            \"reason\": {\n              \"messageId\": \"no.scale.down.node.no.place.to.move.pods\"\n            }\n          }\n        ]\n      },\n      \"measureTime\": \"1752629097\"\n    }\n  },\n  \"resource\": {\n    \"type\": \"k8s_cluster\",\n    \"labels\": {\n      \"cluster_name\": \"gke-cluster-123\",\n      \"location\": \"us-east4\",\n      \"project_id\": \"test-project\"\n    }\n  },\n  \"timestamp\": \"2025-07-16T01:24:57.404093686Z\",\n  \"logName\": \"projects/test-project/logs/container.googleapis.com%2Fcluster-autoscaler-visibility\",\n  \"receiveTimestamp\": \"2025-07-16T01:24:57.695951317Z\"\n}\n\n**Remediation**\n\nIf you expect that the Pod should be rescheduled, review the scheduling requirements of the Pods on the underutilized\nnode to determine if they can be moved to another node in the cluster.\nTo learn more, see the link\n<https://cloud.google.com/kubernetes-engine/docs/troubleshooting/cluster-autoscaler-scale-down#no-place-to-move-pods>",
+      "systemRelevanceScore": 0.7
+    },
+    "diagnostics.gke_ca_no_scale_up.0": {
+      "id": "diagnostics.gke_ca_no_scale_up.0",
+      "title": "Node provisioning couldn't scale because auto proviosning is not enabled",
+      "observationType": "OBSERVATION_TYPE_COMPOSITE",
+      "observerType": "OBSERVER_TYPE_DIAGNOSTICS",
+      "text": "Node auto provisioning in the cluster `gke-cluster-123` within the project `test-project` and located in `us-east4`  couldn't scale up because node auto provisioning is not enabled at cluster level.\n\nIf node auto-provisioning is disabled, new nodes won't be automatically provisioned if the pending Pod has requirements that can't be satisfied by any existing node pools.\n\nFor more details, please refer to logs in [Logs Explorer](https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_cluster%22%0Aresource.labels.location%3D%22us-east4%22%0Aresource.labels.cluster_name%3D%22gke-cluster-123%22%0Alog_id%2528%22container.googleapis.com%2Fcluster-autoscaler-visibility%22%2529%0A%2528jsonPayload.noDecisionStatus.noScaleUp.reason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.napFailureReason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.skippedMigs.reason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.unhandledPodGroups.napFailureReasons.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.unhandledPodGroups.rejectedMigs.reason.messageId%3D%22no.scale.up.nap.disabled%22%2529;duration=P3D?project=test-project)\n\nFor mitigation, please review the cluster configuration and consider [enabling node auto-provisioning](https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-provisioning#enable).",
+      "systemRelevanceScore": 0.7
+    },
+    "conclusion.hypothesis.ip_address_exhaustion": {
+      "id": "conclusion.hypothesis.ip_address_exhaustion",
+      "title": "IP Address Exhaustion",
+      "observationType": "OBSERVATION_TYPE_HYPOTHESIS",
+      "observerType": "OBSERVER_TYPE_AI",
+      "text": "### Overview:\nThe 'default-pool' nodepool in your GKE cluster 'gke-cluster-123' is failing to scale up due to IP address exhaustion within the 'small-subnet-009-8' subnet. The cluster autoscaler logs also show \"scale.up.error.ip.space.exhausted\" errors, indicating that the cluster lacks sufficient unallocated IP address space to add new nodes or pods.\n\n### Recommended fixes:\n*   **Expand the IP range of the 'small-subnet-009-8' subnet**.  Refer to the documentation on expanding subnets.\n*   **Consider using a different IP range** for the nodepool.\n*   **Reduce the number of pods per node** to free up IP addresses. You can achieve this by creating a new node pool with a smaller maximum number of pods per node and migrating workloads to that node pool.\n*   **Review IP address planning** to ensure the node IP address range aligns with your scaling requirements.",
+      "knowledgeUrls": {
+        "expanding subnets": "https://cloud.google.com/vpc/docs/create-modify-vpc-networks#expand-subnet",
+        "Troubleshoot IP address management in VPC clusters  |  GKE networking  |  Google Cloud": "https://cloud.google.com/kubernetes-engine/docs/troubleshooting/vpc-clusters",
+        "VPC-native clusters  |  GKE networking  |  Google Cloud": "https://cloud.google.com/kubernetes-engine/docs/concepts/alias-ips"
+      },
+      "baseObservations": [
+        "diagnostics.gke_cluster_autoscaler.6",
+        "signals.correlated_event_detail.b59c596c-aaea-4357-8d3a-63fc8345a577",
+        "signals.correlated_event_detail.e87eeba1-7356-45da-9092-9426f7949e8e",
+        "signals.correlated_event_detail.e955292b-b2aa-493e-aa90-4d559d61de91"
+      ],
+      "systemRelevanceScore": 0.6
+    },
+    "conclusion.hypothesis.cluster_autoscaler_unable_to_scale_down": {
+      "id": "conclusion.hypothesis.cluster_autoscaler_unable_to_scale_down",
+      "title": "Cluster Autoscaler Unable to Scale Down",
+      "observationType": "OBSERVATION_TYPE_HYPOTHESIS",
+      "observerType": "OBSERVER_TYPE_AI",
+      "text": "### Overview:\nThe Cluster Autoscaler logs indicate that it was unable to scale down nodes in the 'default-pool' nodepool of the 'gke-cluster-123' cluster because there were no suitable nodes to which the pods could be moved. This can block the autoscaler from scaling up the cluster if it needs to remove nodes to make room for new ones.\n\n### Recommended fixes:\n*   **Review the scheduling requirements of the Pods** on the underutilized node to determine if they can be moved to another node in the cluster.\n*   **Check for any PodDisruptionBudgets** that might be preventing the pods from being evicted.\n*   **Ensure that there are other nodes in the cluster** that meet the scheduling requirements of the pods on the underutilized node.",
+      "baseObservations": [
+        "diagnostics.gke_cluster_autoscaler.12",
+        "signals.correlated_event_detail.db760515-3eb6-40b6-a277-3cd2459c6420"
+      ],
+      "systemRelevanceScore": 0.6
+    },
+    "conclusion.hypothesis.node_auto-provisioning_disabled": {
+      "id": "conclusion.hypothesis.node_auto-provisioning_disabled",
+      "title": "Node Auto-Provisioning Disabled",
+      "observationType": "OBSERVATION_TYPE_HYPOTHESIS",
+      "observerType": "OBSERVER_TYPE_AI",
+      "text": "### Overview:\nThe 'default-pool' nodepool in your GKE cluster 'gke-cluster-123' is not scaling up because node auto-provisioning is disabled at the cluster level. When node auto-provisioning is disabled, GKE cannot automatically create new node pools to satisfy the resource requirements of pending pods.\n\n### Recommended fixes:\n*   Enable node auto-provisioning for your cluster. You can find instructions on how to do this in the GKE documentation.",
+      "knowledgeUrls": {
+        "Logs Explorer": "https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_cluster%22%0Aresource.labels.location%3D%22us-east4%22%0Aresource.labels.cluster_name%3D%22gke-cluster-123%22%0Alog_id%2528%22container.googleapis.com%2Fcluster-autoscaler-visibility%22%2529%0A%2528jsonPayload.noDecisionStatus.noScaleUp.reason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.napFailureReason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.skippedMigs.reason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.unhandledPodGroups.napFailureReasons.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.unhandledPodGroups.rejectedMigs.reason.messageId%3D%22no.scale.up.nap.disabled%22%2529;duration=P3D?project=test-project",
+        "GKE documentation": "https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-provisioning#enable"
+      },
+      "baseObservations": [
+        "diagnostics.gke_ca_no_scale_up.0"
+      ],
+      "systemRelevanceScore": 0.6
+    }
+  },
+  "dataVersion": 2
+}

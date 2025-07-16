@@ -1,0 +1,249 @@
+/*
+Copyright 2025 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import {
+    PRIMARY_USER_OBSERVATION_ID
+} from './api/constants.js';
+import {
+    InvestigationPath
+} from './api/utils.js';
+
+const GEMINI_CLOUD_INVESTIGATIONS_BASE_URL = 'https://console.cloud.google.com/troubleshooting/investigations/details/';
+
+/**
+ * Utility functions for formatting investigation data into human-readable text.
+ */
+
+function formatResources(resources) {
+    if (!resources || resources.length === 0) {
+        return [];
+    }
+    const lines = [`**Relevant Resources (${resources.length})**`];
+    lines.push(...resources.map(res => `- ${res}`));
+    return lines;
+}
+
+function formatKnowledgeUrls(links) {
+    if (!links) {
+        return [];
+    }
+    const lines = ['**Relevant Links**:', ''];
+    lines.push(...Object.entries(links).map(([title, url]) => `- [${title}](${url})`));
+    return lines;
+}
+
+function cleanText(text) {
+    return text || '';
+}
+
+export function getInvestigationLink(projectId, investigationId) {
+    if (!projectId || !investigationId) {
+        return '';
+    }
+    const params = new URLSearchParams({
+        project: projectId
+    });
+    return `${GEMINI_CLOUD_INVESTIGATIONS_BASE_URL}${investigationId}?${params.toString()}`;
+}
+
+
+
+// --- InvestigationViewer Class ---
+
+export class InvestigationViewer {
+    /**
+     * A tool to create a well-formatted, human-readable text representation
+     * of an investigation JSON object.
+     * @param {object} data - The investigation data loaded from JSON.
+     */
+    constructor(data) {
+        if (typeof data !== 'object' || data === null) {
+            throw new TypeError('Input data must be an object.');
+        }
+        this.data = data.snapshot || data;
+        this.path = InvestigationPath.fromInvestigationName(this.data.name);
+
+
+        this.observations = {};
+        if (this.data.observations) {
+            for (const obs of Object.values(this.data.observations)) {
+                if (obs.id) {
+                    this.observations[obs.id] = obs;
+                }
+            }
+        }
+
+        this.userTextObservations = {};
+        for (const [obsId, obs] of Object.entries(this.observations)) {
+            if (obs.observerType === 'OBSERVER_TYPE_USER' && obs.observationType === 'OBSERVATION_TYPE_TEXT_DESCRIPTION') {
+                this.userTextObservations[obsId] = obs;
+            }
+        }
+    }
+
+    formatIssueSection() {
+        const userInput = this.observations[PRIMARY_USER_OBSERVATION_ID] || {};
+        const startTime = (userInput.timeRanges && userInput.timeRanges[0] && userInput.timeRanges[0].startTime) ? userInput.timeRanges[0].startTime : 'N/A';
+        const projectIdentifier = this.path ? this.path.getProjectId() : 'N/A';
+
+        const details = {
+            'Name': this.data.title || 'N/A',
+            'Start Time': startTime,
+            'End Time': this.data.updateTime || 'N/A',
+            'Project': projectIdentifier,
+            'Investigation Path': this.data.name || 'N/A',
+            'Revision Path': this.data.revision || 'N/A'
+        };
+
+        const contentLines = ['## Issue', ''];
+        contentLines.push(...Object.entries(details).map(([key, value]) => `**${key}**: ${value}`));
+        contentLines.push('**Issue Description**:');
+        contentLines.push(cleanText(userInput.text || 'No description provided.'));
+        contentLines.push('');
+        contentLines.push(...formatResources(userInput.relevantResources));
+        contentLines.push('');
+
+        return contentLines.join('\n');
+    }
+
+    formatUserObservationsSection() {
+        const userObs = Object.values(this.userTextObservations).filter(obs => obs.id !== PRIMARY_USER_OBSERVATION_ID);
+
+        if (userObs.length === 0) {
+            return '';
+        }
+
+        const contentLines = [`## User Observations (${userObs.length})`, ''];
+        for (const obs of userObs) {
+            contentLines.push(`- ${cleanText(obs.text || 'No text content.')}`);
+            contentLines.push('');
+        }
+
+        return contentLines.join('\n');
+    }
+
+    isRelevantObservation(obs) {
+        if (!obs.title) return false;
+        if ((obs.systemRelevanceScore || -1) < 0) return false;
+
+        const observerType = obs.observerType;
+        const obsType = obs.observationType;
+
+        if (observerType === 'OBSERVER_TYPE_USER') return false;
+        if (obsType === 'OBSERVATION_TYPE_RELATED_RESOURCES') return false;
+
+        return ['OBSERVER_TYPE_DIAGNOSTICS', 'OBSERVER_TYPE_SIGNALS'].includes(observerType);
+    }
+
+    formatObservationsSection() {
+        const relevantObs = Object.values(this.observations)
+            .filter(obs => this.isRelevantObservation(obs))
+            .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+        if (relevantObs.length === 0) {
+            return '## Relevant Observations (0)\n\nNo relevant observations found matching the criteria.';
+        }
+
+        const sectionTitle = `## Relevant Observations (${relevantObs.length})`;
+        const itemDetailBlocks = relevantObs.map(obs => {
+            const blockLines = [`### ${obs.title || 'N/A'}`];
+            const obsIdType = (obs.id || 'N/A').split('.')[0];
+            blockLines.push(`**Type**: ${obsIdType.charAt(0).toUpperCase() + obsIdType.slice(1).toLowerCase()}`);
+            blockLines.push('');
+            blockLines.push(cleanText(obs.text || 'No text content.'));
+            blockLines.push(...formatResources(obs.relevantResources));
+            return blockLines.join('\n');
+        });
+
+        const observationsDetailsStr = itemDetailBlocks.join('\n\n---\n\n');
+        return `${sectionTitle}\n\n${observationsDetailsStr}`;
+    }
+
+    formatHypothesesSection() {
+        const hypotheses = Object.values(this.observations)
+            .filter(obs => obs.observationType === 'OBSERVATION_TYPE_HYPOTHESIS')
+            .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+        if (hypotheses.length === 0) {
+            return '## Hypotheses (0)\n\nNo hypotheses found.';
+        }
+
+        const sectionTitle = `## Hypotheses (${hypotheses.length})`;
+        const itemDetailBlocks = hypotheses.map((hypo, i) => {
+            const blockLines = [`### Hypothesis ${i + 1}: ${hypo.title || 'N/A'}`];
+            const textContent = cleanText(hypo.text);
+            textContent.split('\n').forEach(line => {
+                blockLines.push(line.trim().startsWith('*') || line.trim().startsWith('```') ? `  ${line}` : line);
+            });
+            blockLines.push('');
+            blockLines.push(...formatKnowledgeUrls(hypo.knowledgeUrls));
+            return blockLines.join('\n');
+        });
+
+        const hypothesesDetailsStr = itemDetailBlocks.join('\n\n---\n\n');
+        return `${sectionTitle}\n\n${hypothesesDetailsStr}`;
+    }
+
+    formatInvestigationLink() {
+        if (!this.path) {
+            return '';
+        }
+        const projectId = this.path.getProjectId();
+        const investigationId = this.path.getInvestigationId();
+        const link = getInvestigationLink(projectId, investigationId);
+        if (!link) {
+            return '';
+        }
+        return `------------------\nYou can view this investigation in the Google Cloud Console\n${link}\n------------------`;
+    }
+
+    render() {
+        const sections = [
+            this.formatIssueSection(),
+            this.formatUserObservationsSection(),
+            this.formatObservationsSection(),
+            this.formatHypothesesSection(),
+        ];
+        const mainContent = sections.filter(Boolean).join('\n\n');
+        const investigationLink = this.formatInvestigationLink();
+
+        return `${mainContent}\n\n${investigationLink}`.trim();
+    }
+}
+
+// --- Investigation List Formatting ---
+export function formatInvestigationList(investigationsData, nextPageToken) {
+    if (!investigationsData || investigationsData.length === 0) {
+        return 'No investigations found.';
+    }
+
+    const formattedInvestigations = investigationsData.map(inv => {
+        const name = inv.name || 'N/A';
+        const title = inv.title || 'N/A';
+        let executionState = inv.executionState || 'N/A';
+        if (executionState.startsWith('INVESTIGATION_EXECUTION_STATE_')) {
+            executionState = executionState.replace('INVESTIGATION_EXECUTION_STATE_', '');
+        }
+        return `Investigation ID: ${name}\nTitle: ${title}\nState: ${executionState}`;
+    });
+
+    const separator = '\n' + '-'.repeat(80) + '\n';
+    let outputText = formattedInvestigations.join(separator);
+    if (nextPageToken) {
+        outputText += `\n\nNext page token: ${nextPageToken}`;
+    }
+    return outputText;
+}
