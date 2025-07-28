@@ -45,7 +45,7 @@ function testInvestigationViewer() {
     const issueSection = viewer.formatIssueSection();
     console.log('\n--- Testing formatIssueSection ---');
     console.log(issueSection);
-    assert(issueSection.includes('## Issue'), 'Issue section should have a title');
+    assert(issueSection.includes('## Gemini Cloud Assist Investigation'), 'Issue section should have a title');
     assert(issueSection.includes('**Name**: [Gemini CLI Test] Test Investigation for GKE'), 'Issue section should have the investigation name');
     assert(issueSection.includes('**Start Time**: N/A'), 'Issue section should have the start time');
     assert(issueSection.includes('**Issue Description**:\nThe \'default-pool\' nodepool in our GKE cluster \'gke-cluster-123\' is not scaling up as expected.'), 'Issue section should have the issue description');
@@ -86,6 +86,14 @@ function testInvestigationViewer() {
     console.log(rendered);
     assert(rendered.length > 0, 'Rendered output should not be empty');
     console.log('✅ render passed');
+
+    // Test render with showObservationsAndHypotheses = false
+    const renderedWithoutObs = viewer.render({ showObservationsAndHypotheses: false });
+    console.log('\n--- Testing render with showObservationsAndHypotheses = false ---');
+    console.log(renderedWithoutObs);
+    assert(!renderedWithoutObs.includes('## Relevant Observations'), 'Rendered output should not contain observations');
+    assert(!renderedWithoutObs.includes('## Hypotheses'), 'Rendered output should not contain hypotheses');
+    console.log('✅ render with showObservationsAndHypotheses = false passed');
 
     console.log('--- InvestigationViewer Tests Passed ---');
 }

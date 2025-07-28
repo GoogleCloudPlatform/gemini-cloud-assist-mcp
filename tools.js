@@ -24,7 +24,7 @@ export const registerTools = (server) => {
     server.tool(
         "fetch_investigation",
         `/**
- * Fetches Gemini Cloud Assist troubleshooting investigations.
+ * Fetches Gemini Cloud Assist Investigations.
  *
  * This function serves as a versatile entry point for retrieving investigation data.
  * It can operate in two modes:
@@ -33,13 +33,11 @@ export const registerTools = (server) => {
  *     troubleshooting investigations associated with that project. It can be
  *     optionally filtered by title using the filter_expression parameter.
  *
- * 2.  **Get Mode:** If an investigationId is provided, it will fetch the
+ * 2.  **Get Mode:** If an investigationId is also provided, it will fetch the
  *     detailed report for that specific investigation. If a revisionId is
  *     also provided, it fetches that particular revision; otherwise, it
  *     retrieves the latest version.
  *
- * The function handles constructing the correct API request based on the
- * presence of investigationId and revisionId.
  */`,
         {
             projectId: z.string().describe("The Google Cloud Project ID."),
@@ -67,22 +65,10 @@ export const registerTools = (server) => {
                     }]
                 };
             } catch (error) {
-                if (error.name === 'ApiError') {
-                    return {
-                        content: [{
-                            type: 'tool-error',
-                            code: error.code,
-                            message: error.message,
-                            details: error.details
-                        }]
-                    };
-                }
-                // Fallback for generic errors
                 return {
                     content: [{
-                        type: 'tool-error',
-                        code: 'UNEXPECTED_ERROR',
-                        message: error.message
+                        type: 'text',
+                        text: error.message
                     }]
                 };
             }
@@ -95,49 +81,37 @@ export const registerTools = (server) => {
     server.tool(
         'create_investigation',
         `/**
- * Creates a new Gemini Cloud Assist Investigation.
+ * Creates a new Gemini Cloud Assist Investigation. This tool is the primary entry point for initiating any new troubleshooting analysis.
  *
- * This is the first and mandatory step.
+ * Prerequisites: 
+ * Argument Resolution: Before invoking this tool, you **MUST** resolve all user-provided information into the specific formats required by the arguments.
  *
- * This tool is the primary entry point for starting any new troubleshooting
- * analysis.
+ * Resource URI Mandate: The 'relevant_resources' parameter requires a list of full Google Cloud Platform (GCP) resource URIs.
+ * - **Format:** Each URI **MUST** strictly adhere to the format: //<service>.googleapis.com/<resource-path>.
+ * - **Validation:** The tool will fail if the provided strings are not well-formed URIs in this exact format.
+ * - **Resolution:** You are responsible for converting any partial, ambiguous, or incomplete resource names (e.g., "my GKE cluster", "the default nodepool", or "project/zone/resource_type/resource_name") into their full URI representation. Utilize available tools like 'gcloud', 'kubectl', or your internal knowledge base to discover the complete and accurate resource URIs.
+ * - **GCP Resource URI Reference**: https://cloud.google.com/asset-inventory/docs/asset-names
+ * 
+ * Example of a correct GCP Resource URI:
+ * - //compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance
  *
- * **Prerequisites: Argument Resolution**
- * Before calling this tool, you **MUST** resolve all user-provided information
- * into the required, specific formats using your available tools.
- * - **Resource URIs ('relevant_resources')**: Convert vague names (e.g., "my
- *   GKE cluster", "the default nodepool") into full resource URIs. Use
- *   'gcloud', 'kubectl', or 'Memorybank' to find the exact paths.
- * - **Timestamp ('start_time')**: Convert relative times (e.g., "30 minutes
- *   ago", "yesterday at 5pm") into the absolute 'YYYY-MM-DDTHH:mm:ssZ'
- *   (UTC) format. Use the 'Shell' tool (e.g., with the 'date' command).
- * - **Project ID ('project_id')**: If the user doesn't specify a project,
- *   determine the correct one from context or by using 'gcloud config get-value
- *   project'.
- * **If you cannot resolve any of this information, you MUST ask the user for
- * clarification before proceeding.**
+ * Additional Argument Formatting:
+ * - **Timestamp ('start_time'):** Convert all relative time expressions (e.g., "30 minutes ago", "yesterday at 5pm") into the absolute 'YYYY-MM-DDTHH:mm:ssZ' UTC format. The 'Shell' tool with the 'date' command can be used for this conversion.
+ * - **Project ID ('project_id'):** If a project is not explicitly mentioned by the user, you must determine the correct one from the context of the conversation or by using the command 'gcloud config get-value project'.
  *
- * @param {string} projectId [REQUIRED] The fully-resolved Google Cloud Project ID.
- * @param {string} title [REQUIRED] A human-readable title. You MUST prefix the title with "[Gemini CLI]".
- * @param {string} issue_description [REQUIRED] A detailed description of the issue.
- * @param {Array<string>} relevant_resources [REQUIRED] A list of fully-resolved resource URIs.
- * @param {string} start_time [REQUIRED] The investigation start time, formatted as 'YYYY-MM-DDTHH:mm:ssZ' (UTC).
- * @returns {string} A summary of the new investigation, structured with markdown. You
- *      **MUST**
- *           parse this output to find the '**Investigation Path**' and
- *           '**Revision Path**'
- *           fields. The final segment of the 'Investigation Path' is the
- *           'investigation_id',
- *           and the final segment of the 'Revision Path' is the 'revision_id'.
- *           These
- *           are required for subsequent tool calls.
+ * **Crucial:** If you are unable to resolve any of this information into the required formats, you **MUST** seek clarification from the user before proceeding to call this tool.
+ *
+ * @returns {string} A summary of the new investigation, structured with Markdown. 
+*           You **MUST** parse this output to find the '**Investigation Path**' and '**Revision Path**'
+*           fields. The final segment of the 'Investigation Path' is the 'investigation_id' and the
+*           final segment of the 'Revision Path' is the 'revision_id'. These are required for subsequent tool calls.
  */`,
         {
-            projectId: z.string().describe('The Google Cloud Project ID.'),
-            title: z.string().describe('The title of the investigation.'),
-            issue_description: z.string().describe('A description of the issue.'),
-            relevant_resources: z.array(z.string()).describe('A list of relevant resources.'),
-            start_time: z.string().describe('The start time of the issue in RFC3339 UTC "Zulu" format.')
+            projectId: z.string().describe("The Google Cloud Project ID."),
+            title: z.string().describe("A human-readable title. You MUST prefix the title with \"[Gemini CLI]\""),
+            issue_description: z.string().describe("A detailed comprehensive description of the issue including relevant tool outputs."),
+            relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs, each starting with '//<service>.googleapis.com/...'. For example: '//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/my-instance-name'."),
+            start_time: z.string().describe("The investigation start time, formatted as 'YYYY-MM-DDTHH:mm:ssZ' (UTC).")
         },
         async ({
             projectId,
@@ -158,7 +132,7 @@ export const registerTools = (server) => {
             try {
                 const result = await client.createInvestigation(projectId, investigation);
                 const viewer = new InvestigationViewer(result);
-                const formattedOutput = viewer.render();
+                const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
 
                 return {
                     content: [{
@@ -167,22 +141,10 @@ export const registerTools = (server) => {
                     }]
                 };
             } catch (error) {
-                if (error.name === 'ApiError') {
-                    return {
-                        content: [{
-                            type: 'tool-error',
-                            code: error.code,
-                            message: error.message,
-                            details: error.details
-                        }]
-                    };
-                }
-                // Fallback for generic errors
                 return {
                     content: [{
-                        type: 'tool-error',
-                        code: 'UNEXPECTED_ERROR',
-                        message: error.message
+                        type: 'text',
+                        text: error.message
                     }]
                 };
             }
@@ -203,9 +165,6 @@ export const registerTools = (server) => {
  * detailed report. There is no need to call any other tool after this to get the
  * results.
  *
- * @param {string} projectId [REQUIRED] The GCP Project ID where the investigation resides.
- * @param {string} investigationId [REQUIRED] The ID of the investigation to run.
- * @param {string} revisionId [REQUIRED] The specific revision ID to run.
  * @returns {string} A detailed troubleshooting report in a structured string format. The
  *           report is organized with '##' headers for sections like 'Issue',
  *           'Hypotheses', 'Relevant Observations', and 'Remediation'.
@@ -214,9 +173,9 @@ export const registerTools = (server) => {
  *           a clear summary of the findings (or lack thereof) to the user.
  */`,
         {
-            projectId: z.string().describe('The Google Cloud Project ID.'),
-            investigationId: z.string().describe('The ID of the investigation to run.'),
-            revisionId: z.string().describe('The revision ID of the investigation to run.'),
+            projectId: z.string().describe("The GCP Project ID where the investigation resides."),
+            investigationId: z.string().describe("The ID of the investigation to run."),
+            revisionId: z.string().describe("The specific revision ID to run."),
         },
         async ({
             projectId,
@@ -243,28 +202,13 @@ export const registerTools = (server) => {
                     }]
                 };
             } catch (error) {
-                if (error.name === 'ApiError') {
-                    return {
-                        content: [{
-                            type: 'tool-error',
-                            code: error.code,
-                            message: error.message,
-                            details: error.details
-                        }]
-                    };
-                }
-                // Fallback for generic errors
                 return {
                     content: [{
-                        type: 'tool-error',
-                        code: 'UNEXPECTED_ERROR',
-                        message: error.message
+                        type: 'text',
+                        text: error.message
                     }]
                 };
             }
-        },
-        {
-            'mcp:tool-class': 'idempotent'
         }
     );
 
@@ -273,34 +217,32 @@ export const registerTools = (server) => {
         `/**
  * Adds a new user observation to an existing investigation.
  *
- * **Prerequisites: Argument Resolution**
- * Before calling this tool, you **MUST** resolve any new resource names
- * mentioned in the user's observation.
- * - **Resource URIs ('relevant_resources')**: If the user's 'observation'
- *   mentions new resources, convert their vague names into full resource URIs
- *   using 'gcloud', 'kubectl', or 'Memorybank'. If no new resources are
- *   mentioned, provide an empty list '[]'.
- * **If you cannot resolve a resource name, you MUST ask the user for
- * clarification before proceeding.**
+ * Prerequisites: 
+ * Argument Resolution: Before invoking this tool, you **MUST** resolve any new resource names mentioned in the user's observation into the specific formats required by the arguments.
  *
- * **Workflow:** After adding an observation, you **MUST** call
- * 'run_investigation'
- * on the new revision to re-analyze with the added context.
+ * Resource URI Mandate: If the user's 'observation' mentions new resources, the 'relevant_resources' parameter requires a list of full Google Cloud Platform (GCP) resource URIs. If no new resources are mentioned, provide an empty list '[]'.
+ * - **Format:** Each URI **MUST** strictly adhere to the format: //<service>.googleapis.com/<resource-path>.
+ * - **Validation:** The tool will fail if any provided strings are not well-formed URIs in this exact format.
+ * - **Resolution:** You are responsible for converting any partial, ambiguous, or incomplete resource names into their full URI representation. Utilize available tools like 'gcloud', 'kubectl', or your internal knowledge base to discover the complete and accurate resource URIs.
+ * - **GCP Resource URI Reference**: https://cloud.google.com/asset-inventory/docs/asset-names
+ * 
+ * Example of a correct GCP Resource URI:
+ * - //compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance
  *
- * @param {string} projectId [REQUIRED] The GCP Project ID where the investigation resides.
- * @param {string} investigationId [REQUIRED] The ID of the investigation.
- * @param {string} observation [REQUIRED] The new information or question from the user.
- * @param {Array<string>} relevant_resources [REQUIRED] A list of fully-resolved resource URIs for any new resources mentioned in the observation.
- * @returns {string} A string summary of the updated investigation, structured with markdown.
+ * **Crucial:** If you cannot resolve a new resource name into the required format, you **MUST** seek clarification from the user before proceeding to call this tool.
+ *
+ * Workflow: After adding an observation, you **MUST** call 'run_investigation' on the new revision to re-analyze with the added context.
+ *
+ * @returns {string} A string summary of the updated investigation, structured with Markdown.
  *           You **MUST** parse this output to find the '**Revision Path**' field.
  *           The final segment of this path is the new 'revision_id' that you must
  *           use for the subsequent 'run_investigation' call.
  */`,
         {
-            projectId: z.string().describe('The Google Cloud Project ID.'),
-            investigationId: z.string().describe('The ID of the investigation.'),
-            observation: z.string().describe('The new information or question from the user.'),
-            relevant_resources: z.array(z.string()).describe('A list of fully-resolved resource URIs for any new resources mentioned in the observation.'),
+            projectId: z.string().describe("The GCP Project ID where the investigation resides."),
+            investigationId: z.string().describe("The ID of the investigation."),
+            observation: z.string().describe("The new information or question from the user."),
+            relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs for any new resources mentioned in the observation, each starting with '//<service>.googleapis.com/...'. Provide an empty list if no new resources are mentioned."),
         },
         async ({ projectId, investigationId, observation, relevant_resources }) => {
             const client = new GeminiCloudAssistClient();
@@ -320,26 +262,13 @@ export const registerTools = (server) => {
                     }]
                 };
             } catch (error) {
-                if (error.name === 'ApiError') {
-                    return {
-                        content: [{
-                            type: 'tool-error',
-                            code: error.code,
-                            message: error.message,
-                            details: error.details
-                        }]
-                    };
-                }
-                // Fallback for generic errors
                 return {
                     content: [{
-                        type: 'tool-error',
-                        code: 'UNEXPECTED_ERROR',
-                        message: error.message
+                        type: 'text',
+                        text: error.message
                     }]
                 };
             }
         }
     );
 };
-

@@ -67,6 +67,39 @@ export class GeminiCloudAssistClient {
         this.auth = this._initAuth(userAgent);
         this.geminiassist = null;
         this.enableDebugLogging = enableDebugLogging;
+        this.isInitialized = false;
+        this.licenseValidated = false;
+    }
+
+    async _ensureReady({ requireLicense = false }) {
+        if (!this.isInitialized) {
+            await this._validateAuth();
+            await this._discoverApi();
+            this.isInitialized = true;
+        }
+        if (requireLicense) {
+            await this._validateLicense();
+        }
+    }
+
+    async _validateAuth() {
+        try {
+            // The act of getting a token is the validation.
+            await this.auth.getAccessToken();
+            this.logger.info('Authentication successful.');
+        } catch (error) {
+            this.logger.error('Authentication failed:', error.message);
+            throw new ApiError(`Authentication failed. Please check your Application Default Credentials. Try running 'gcloud auth application-default login'. ${error.message}`, 'AUTH_FAILED');
+        }
+    }
+
+    async _validateLicense() {
+        if (this.licenseValidated) {
+            return;
+        }
+        // Placeholder for license validation logic
+        this.logger.debug('Placeholder: License validation check would occur here.');
+        this.licenseValidated = true;
     }
 
     _initAuth(userAgent) {
@@ -84,7 +117,6 @@ export class GeminiCloudAssistClient {
     }
 
     async _discoverApi() {
-        if (this.geminiassist) return;
         let discoveryOptions = {
             url: DISCOVERY_API_URL
         }
@@ -158,11 +190,10 @@ export class GeminiCloudAssistClient {
         revisionId,
         filter_expression
     }) {
+        await this._ensureReady({ requireLicense: true });
         if (revisionId && !investigationId) {
             return Promise.reject(new ApiError("revisionId cannot be provided without investigationId.", 'INVALID_ARGUMENT'));
         }
-
-        await this._discoverApi();
 
         if (investigationId) {
             return this.getInvestigation({
@@ -189,7 +220,6 @@ export class GeminiCloudAssistClient {
         projectId,
         filter = ""
     }) {
-        await this._discoverApi();
         const path = new InvestigationPath(projectId);
 
         try {
@@ -239,7 +269,7 @@ export class GeminiCloudAssistClient {
      * @returns {Promise<object>} The created investigation object.
      */
     async createInvestigation(projectId, investigation) {
-        await this._discoverApi();
+        await this._ensureReady({ requireLicense: true });
         const path = new InvestigationPath(projectId);
 
         try {
@@ -293,8 +323,7 @@ export class GeminiCloudAssistClient {
         investigationId,
         revisionId
     }) {
-        await this._discoverApi();
-
+        await this._ensureReady({ requireLicense: true });
         const path = new InvestigationPath(projectId, investigationId, revisionId);
 
         try {
@@ -379,7 +408,6 @@ export class GeminiCloudAssistClient {
         investigationId,
         revisionId
     }, logSuffix = '') {
-        await this._discoverApi();
         const path = new InvestigationPath(projectId, investigationId, revisionId);
         const investigationName = revisionId ? path.getRevisionName() : path.getInvestigationName();
 
@@ -413,6 +441,7 @@ export class GeminiCloudAssistClient {
         investigationId,
         revisionId
     }) {
+        await this._ensureReady({ requireLicense: true });
         try {
             const rawInvestigation = await this._getInvestigationRaw({
                 projectId,
@@ -450,8 +479,7 @@ export class GeminiCloudAssistClient {
         observation,
         relevant_resources
     }) {
-        await this._discoverApi();
-
+        await this._ensureReady({ requireLicense: true });
         try {
             const latestRevision = await this._getInvestigationRaw({
                 projectId,

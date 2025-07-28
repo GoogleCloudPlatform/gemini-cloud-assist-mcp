@@ -108,7 +108,7 @@ export class InvestigationViewer {
             'Revision Path': this.data.revision || 'N/A'
         };
 
-        const contentLines = ['## Issue', ''];
+        const contentLines = ['## Gemini Cloud Assist Investigation', ''];
         contentLines.push(...Object.entries(details).map(([key, value]) => `**${key}**: ${value}`));
         contentLines.push('**Issue Description**:');
         contentLines.push(cleanText(userInput.text || 'No description provided.'));
@@ -210,13 +210,19 @@ export class InvestigationViewer {
         return `------------------\nYou can view this investigation in the Google Cloud Console\n${link}\n------------------`;
     }
 
-    render() {
+    render(options = {}) {
+        const { showObservationsAndHypotheses = true } = options;
+
         const sections = [
             this.formatIssueSection(),
             this.formatUserObservationsSection(),
-            this.formatObservationsSection(),
-            this.formatHypothesesSection(),
         ];
+
+        if (showObservationsAndHypotheses) {
+            sections.push(this.formatObservationsSection());
+            sections.push(this.formatHypothesesSection());
+        }
+        
         const mainContent = sections.filter(Boolean).join('\n\n');
         const investigationLink = this.formatInvestigationLink();
 
