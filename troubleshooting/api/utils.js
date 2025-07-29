@@ -162,6 +162,25 @@ export function createInitialInvestigation(title, projectId, issue_description, 
     };
 }
 
+
+/**
+ * Validates a list of strings to ensure they are syntactically correct GCP resource URIs.
+ *
+ * @param {string[]} resources - The list of resource strings to validate.
+ * @returns {string[]} - A list of the invalid resource strings. If all are valid, the list is empty.
+ */
+export function validateGcpResources(resources) {
+    const invalidResources = [];
+    const gcpResourceRegex = /^\/\/(?!www\.)[a-zA-Z0-9-.]+\.googleapis\.com\/((projects|folders|organizations)\/[a-zA-Z0-9-_.]+(\/(.+))?|\S+)$/;
+
+    for (const resource of resources) {
+        if (typeof resource !== 'string' || !gcpResourceRegex.test(resource)) {
+            invalidResources.push(resource);
+        }
+    }
+    return invalidResources;
+}
+
 /**
  * Creates a new revision payload from an existing investigation by adding a new
  * user observation.
@@ -191,7 +210,6 @@ export function createInitialInvestigation(title, projectId, issue_description, 
  */
 export function getRevisionWithNewObservation(payload, observationText, relevantResources) {
     if (!payload) {
-        console.error("No investigation payload found to add observation to.");
         return null;
     }
 

@@ -22,7 +22,8 @@ import { strict as assert } from 'assert';
 import {
     createInitialInvestigation,
     getRevisionWithNewObservation,
-    InvestigationPath
+    InvestigationPath,
+    validateGcpResources,
 } from './utils.js';
 
 const realisticBasePayload = {
@@ -52,143 +53,225 @@ const realisticBasePayload = {
             "text": "test-project"
         }
     }
-};
+}
 
+let totalTests = 0;
+let testsPassed = 0;
+const errors = [];
+
+function runTest(description, testFn) {
+    totalTests++;
+    try {
+        testFn();
+        console.log(`  ✅ ${description}`);
+        testsPassed++;
+    } catch (error) {
+        console.error(`  ❌ ${description}`);
+        errors.push({ description, error });
+    }
+}
 
 function runApiUtilsTests() {
-    console.log('Running tests for the api utils part of utils.js...');
+    console.log('\n--- Testing API Utils ---');
 
-    // Test case 1: Verifies that `createInitialInvestigation` correctly
-    // constructs a valid investigation payload.
-    console.log('Test 1: createInitialInvestigation should create a valid payload.');
-    const initialPayload = createInitialInvestigation(
-        '[Gemini CLI] Minimal Test Case',
-        'test-project',
-        'My GKE cluster is broken.',
-        ['//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/cluster-abc'],
-        '2025-07-10T12:00:00Z'
-    );
-    assert.strictEqual(initialPayload.title, '[Gemini CLI] Minimal Test Case');
-    assert.ok(initialPayload.observations['user.project']);
-    assert.ok(initialPayload.observations['user.input.text']);
-    assert.strictEqual(initialPayload.observations['user.input.text'].relevantResources.length, 1);
-    console.log('Test 1 Passed.');
+    runTest('createInitialInvestigation should create a valid payload.', () => {
 
+        const initialPayload = createInitialInvestigation(
+            '[Gemini CLI] Minimal Test Case',
+            'test-project',
+            'My GKE cluster is broken.',
+            ['//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/cluster-abc'],
+            '2025-07-10T12:00:00Z'
+        );
+        assert.strictEqual(initialPayload.title, '[Gemini CLI] Minimal Test Case');
+        assert.ok(initialPayload.observations['user.project']);
+        assert.ok(initialPayload.observations['user.input.text']);
+        assert.strictEqual(initialPayload.observations['user.input.text'].relevantResources.length, 1);
+    });
 
-    // Test case 2: Checks if `getRevisionWithNewObservation` can successfully
-    // append text and resources to the primary observation.
-    console.log('\nTest 2: getRevisionWithNewObservation should append text and resources to the primary observation.');
-    const newObservationText1 = 'The pods are all in a CrashLoopBackOff state.';
-    const newResource1 = '//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/cluster-abc/pods/pod-123';
-    const revision1 = getRevisionWithNewObservation(
-        realisticBasePayload,
-        newObservationText1,
-        [newResource1]
-    );
+    runTest('getRevisionWithNewObservation should append text and resources.', () => {
+        const newObservationText1 = 'The pods are all in a CrashLoopBackOff state.';
+        const newResource1 = '//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/cluster-abc/pods/pod-123';
+        const revision1 = getRevisionWithNewObservation(
+            realisticBasePayload,
+            newObservationText1,
+            [newResource1]
+        );
+        const originalUserObsCount = Object.values(realisticBasePayload.observations).filter(o => o.observerType === 'OBSERVER_TYPE_USER').length;
+        const newUserObsCount = Object.values(revision1.snapshot.observations).filter(o => o.observerType === 'OBSERVER_TYPE_USER').length;
+        assert.strictEqual(newUserObsCount, originalUserObsCount, 'Should not add a new observation object.');
+        const updatedObservation = revision1.snapshot.observations['user.input.text'];
+        assert.ok(updatedObservation.text.includes(newObservationText1), 'The new observation text should be appended.');
+        assert.ok(updatedObservation.relevantResources.includes(newResource1), 'The new resource should be added to relevantResources.');
+    });
 
-    const originalUserObsCount = Object.values(realisticBasePayload.observations).filter(o => o.observerType === 'OBSERVER_TYPE_USER').length;
-    const newUserObsCount = Object.values(revision1.snapshot.observations).filter(o => o.observerType === 'OBSERVER_TYPE_USER').length;
+    runTest('getRevisionWithNewObservation should handle back-to-back calls.', () => {
+        const newObservationText1 = 'The pods are all in a CrashLoopBackOff state.';
+        const newResource1 = '//container.googleapis.com/projects/test-project/locations/us-central1-a/clusters/cluster-abc/pods/pod-123';
+        const revision1 = getRevisionWithNewObservation(realisticBasePayload, newObservationText1, [newResource1]);
+        const newObservationText2 = 'I also noticed that the node pool is at maximum capacity.';
+        const revision2 = getRevisionWithNewObservation(revision1.snapshot, newObservationText2, []);
+        const originalUserObsCount = Object.values(realisticBasePayload.observations).filter(o => o.observerType === 'OBSERVER_TYPE_USER').length;
+        const finalUserObsCount = Object.values(revision2.snapshot.observations).filter(o => o.observerType === 'OBSERVER_TYPE_USER').length;
+        assert.strictEqual(finalUserObsCount, originalUserObsCount, 'Should still have the same number of user observations.');
+        const finalText = revision2.snapshot.observations['user.input.text'].text;
+        assert.ok(finalText.includes(newObservationText1), 'The first observation text should still be present.');
+        assert.ok(finalText.includes(newObservationText2), 'The second observation text should be appended.');
+    });
 
-    // The number of observations should NOT change.
-    assert.strictEqual(newUserObsCount, originalUserObsCount, 'Should not add a new observation object.');
+    console.log('\n  --- Edge Cases ---');
+    runTest('Handle null payload gracefully.', () => {
+        const nullPayloadResult = getRevisionWithNewObservation(null, 'test', []);
+        assert.strictEqual(nullPayloadResult, null);
+    });
 
-    // The text should be appended.
-    const updatedObservation = revision1.snapshot.observations['user.input.text'];
-    assert.ok(updatedObservation.text.includes(newObservationText1), 'The new observation text should be appended.');
-
-    // The new resource should be added.
-    assert.ok(updatedObservation.relevantResources.includes(newResource1), 'The new resource should be added to relevantResources.');
-    console.log('Test 2 Passed.');
-
-
-    // Test case 3: Ensures that the system can handle multiple, sequential additions
-    // of observations to the same investigation payload without errors.
-    console.log('\nTest 3: getRevisionWithNewObservation should handle back-to-back calls, appending text sequentially.');
-    const newObservationText2 = 'I also noticed that the node pool is at maximum capacity.';
-    const revision2 = getRevisionWithNewObservation(
-        revision1.snapshot,
-        newObservationText2,
-        [] // No new resources this time
-    );
-
-    const finalUserObsCount = Object.values(revision2.snapshot.observations).filter(o => o.observerType === 'OBSERVER_TYPE_USER').length;
-    assert.strictEqual(finalUserObsCount, originalUserObsCount, 'Should still have the same number of user observations after back-to-back calls.');
-
-    const finalText = revision2.snapshot.observations['user.input.text'].text;
-    assert.ok(finalText.includes(newObservationText1), 'The first observation text should still be present.');
-    assert.ok(finalText.includes(newObservationText2), 'The second observation text should be appended.');
-    console.log('Test 3 Passed.');
-
-
-    // --- Edge Cases ---
-    console.log('\n--- Running Edge Case Tests ---');
-
-    // Test case 4: Confirms that the function gracefully handles a `null` input
-    // for the payload, which is a potential failure point.
-    console.log('Test 4 (Edge Case): Handle null payload.');
-    const nullPayloadResult = getRevisionWithNewObservation(null, 'test', []);
-    assert.strictEqual(nullPayloadResult, null);
-    console.log('Test 4 Passed.');
-
-    // Test case 5: Verifies that the function can work with a payload object
-    // that is missing the `observations` property entirely.
-    console.log('Test 5 (Edge Case): Handle payload with no observations property.');
-    const noObsPayload = { title: 'Test' };
-    const noObsResult = getRevisionWithNewObservation(noObsPayload, 'test', []);
-    assert.ok(noObsResult.snapshot.observations);
-    assert.strictEqual(Object.keys(noObsResult.snapshot.observations).length, 1);
-    console.log('Test 5 Passed.');
-
-    console.log('\nAll api_utils tests passed!');
+    runTest('Handle payload with no observations property.', () => {
+        const noObsPayload = { title: 'Test' };
+        const noObsResult = getRevisionWithNewObservation(noObsPayload, 'test', []);
+        assert.ok(noObsResult.snapshot.observations);
+        assert.strictEqual(Object.keys(noObsResult.snapshot.observations).length, 1);
+    });
 }
 
 function testInvestigationPath() {
-    console.log('Running tests for the InvestigationPath part of utils.js...');
+    console.log('\n--- Testing InvestigationPath ---');
 
-    // Test constructor and basic getters
-    const path1 = new InvestigationPath('project-123', 'investigation-abc', 'revision-xyz');
-    assert.strictEqual(path1.getProjectId(), 'project-123', 'Test Case 1 Failed: getProjectId');
-    assert.strictEqual(path1.getInvestigationId(), 'investigation-abc', 'Test Case 2 Failed: getInvestigationId');
-    assert.strictEqual(path1.getParent(), 'projects/project-123/locations/global', 'Test Case 3 Failed: getParent');
-    assert.strictEqual(path1.getInvestigationName(), 'projects/project-123/locations/global/investigations/investigation-abc', 'Test Case 4 Failed: getInvestigationName');
-    assert.strictEqual(path1.getRevisionName(), 'projects/project-123/locations/global/investigations/investigation-abc/revisions/revision-xyz', 'Test Case 5 Failed: getRevisionName');
+    runTest('Constructor and basic getters should work.', () => {
+        const path = new InvestigationPath('project-123', 'investigation-abc', 'revision-xyz');
+        assert.strictEqual(path.getProjectId(), 'project-123');
+        assert.strictEqual(path.getInvestigationId(), 'investigation-abc');
+        assert.strictEqual(path.getParent(), 'projects/project-123/locations/global');
+        assert.strictEqual(path.getInvestigationName(), 'projects/project-123/locations/global/investigations/investigation-abc');
+        assert.strictEqual(path.getRevisionName(), 'projects/project-123/locations/global/investigations/investigation-abc/revisions/revision-xyz');
+    });
 
-    // Test constructor with missing revision
-    const path2 = new InvestigationPath('project-456', 'investigation-def');
-    assert.strictEqual(path2.getInvestigationName(), 'projects/project-456/locations/global/investigations/investigation-def', 'Test Case 6 Failed: getInvestigationName without revision');
-    assert.throws(() => path2.getRevisionName(), /Revision ID are not set/, 'Test Case 7 Failed: Throws on getRevisionName without revisionId');
+    runTest('Constructor with missing revision should work.', () => {
+        const path = new InvestigationPath('project-456', 'investigation-def');
+        assert.strictEqual(path.getInvestigationName(), 'projects/project-456/locations/global/investigations/investigation-def');
+        assert.throws(() => path.getRevisionName(), /Revision ID are not set/);
+    });
 
-    // Test fromInvestigationName - full path
-    const fullName = 'projects/project-789/locations/global/investigations/investigation-ghi/revisions/revision-jkl';
-    const path3 = InvestigationPath.fromInvestigationName(fullName);
-    assert.ok(path3, 'Test Case 8 Failed: fromInvestigationName should not return null for valid full name');
-    assert.strictEqual(path3.getProjectId(), 'project-789', 'Test Case 9 Failed: fromInvestigationName projectId parsing');
-    assert.strictEqual(path3.getInvestigationId(), 'investigation-ghi', 'Test Case 10 Failed: fromInvestigationName investigationId parsing');
-    assert.strictEqual(path3.getRevisionName(), fullName, 'Test Case 11 Failed: fromInvestigationName full path reconstruction');
+    runTest('fromInvestigationName should parse full path.', () => {
+        const fullName = 'projects/project-789/locations/global/investigations/investigation-ghi/revisions/revision-jkl';
+        const path = InvestigationPath.fromInvestigationName(fullName);
+        assert.ok(path);
+        assert.strictEqual(path.getProjectId(), 'project-789');
+        assert.strictEqual(path.getInvestigationId(), 'investigation-ghi');
+        assert.strictEqual(path.getRevisionName(), fullName);
+    });
 
-    // Test fromInvestigationName - investigation path only
-    const investigationNameOnly = 'projects/project-101/locations/global/investigations/investigation-mno';
-    const path4 = InvestigationPath.fromInvestigationName(investigationNameOnly);
-    assert.ok(path4, 'Test Case 12 Failed: fromInvestigationName should not return null for investigation name');
-    assert.strictEqual(path4.getProjectId(), 'project-101', 'Test Case 13 Failed: fromInvestigationName projectId parsing (investigation only)');
-    assert.strictEqual(path4.getInvestigationId(), 'investigation-mno', 'Test Case 14 Failed: fromInvestigationName investigationId parsing (investigation only)');
-    assert.strictEqual(path4.revisionId, null, 'Test Case 15 Failed: fromInvestigationName revisionId should be null');
+    runTest('fromInvestigationName should parse investigation path.', () => {
+        const investigationNameOnly = 'projects/project-101/locations/global/investigations/investigation-mno';
+        const path = InvestigationPath.fromInvestigationName(investigationNameOnly);
+        assert.ok(path);
+        assert.strictEqual(path.getProjectId(), 'project-101');
+        assert.strictEqual(path.getInvestigationId(), 'investigation-mno');
+        assert.strictEqual(path.revisionId, null);
+    });
 
-    // Test fromInvestigationName - project path only
-    const projectPathOnly = 'projects/project-202/locations/global';
-    const path5 = InvestigationPath.fromInvestigationName(projectPathOnly);
-    assert.ok(path5, 'Test Case 16 Failed: fromInvestigationName should not return null for project path');
-    assert.strictEqual(path5.getProjectId(), 'project-202', 'Test Case 17 Failed: fromInvestigationName projectId parsing (project only)');
-    assert.strictEqual(path5.getInvestigationId(), null, 'Test Case 18 Failed: fromInvestigationName investigationId should be null');
+    runTest('fromInvestigationName should parse project path.', () => {
+        const projectPathOnly = 'projects/project-202/locations/global';
+        const path = InvestigationPath.fromInvestigationName(projectPathOnly);
+        assert.ok(path);
+        assert.strictEqual(path.getProjectId(), 'project-202');
+        assert.strictEqual(path.getInvestigationId(), null);
+    });
 
-    // Test fromInvestigationName - invalid paths
-    assert.strictEqual(InvestigationPath.fromInvestigationName(''), null, 'Test Case 19 Failed: Handles empty string');
-    assert.strictEqual(InvestigationPath.fromInvestigationName('invalid/path'), null, 'Test Case 20 Failed: Handles invalid path');
-
-    console.log('All InvestigationPath tests passed!');
+    runTest('fromInvestigationName should handle invalid paths.', () => {
+        assert.strictEqual(InvestigationPath.fromInvestigationName(''), null);
+        assert.strictEqual(InvestigationPath.fromInvestigationName('invalid/path'), null);
+    });
 }
 
-runApiUtilsTests();
-testInvestigationPath();
+function testIsValidGcpResource() {
+    console.log('\n--- Testing isValidGcpResource ---');
 
-console.log('\nAll tests in utils.test.js passed!');
+    runTest('Valid resource should return an empty array.', () => {
+        const validResources = ['//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/my-instance'];
+        assert.deepStrictEqual(validateGcpResources(validResources), []);
+    });
+
+    runTest('Multiple valid resources should return an empty array.', () => {
+        const validResources = [
+            '//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/my-instance',
+            '//storage.googleapis.com/my-bucket/my-object',
+            '//bigquery.googleapis.com/projects/my-project/datasets/my-dataset'
+        ];
+        assert.deepStrictEqual(validateGcpResources(validResources), []);
+    });
+
+    runTest('Valid storage bucket resource should return an empty array.', () => {
+        const validResources = ['//storage.googleapis.com/bucket_id'];
+        assert.deepStrictEqual(validateGcpResources(validResources), []);
+    });
+
+    runTest('Invalid resource (missing //) should return the invalid resource.', () => {
+        const invalidResources = ['/compute.googleapis.com/projects/my-project'];
+        assert.deepStrictEqual(validateGcpResources(invalidResources), invalidResources);
+    });
+
+    runTest('Invalid resource (http://) should return the invalid resource.', () => {
+        const invalidResources = ['http://compute.googleapis.com/projects/my-project'];
+        assert.deepStrictEqual(validateGcpResources(invalidResources), invalidResources);
+    });
+
+    runTest('Mixed valid and invalid resources should return only the invalid ones.', () => {
+        const mixedResources = [
+            '//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/my-instance',
+            'invalid-resource',
+            '//storage.googleapis.com/my-bucket/my-object',
+            'another-invalid-resource'
+        ];
+        const expectedInvalid = ['invalid-resource', 'another-invalid-resource'];
+        assert.deepStrictEqual(validateGcpResources(mixedResources), expectedInvalid);
+    });
+
+    runTest('Empty array should return an empty array.', () => {
+        assert.deepStrictEqual(validateGcpResources([]), []);
+    });
+
+    runTest('Array with empty string should return the empty string.', () => {
+        assert.deepStrictEqual(validateGcpResources(['']), ['']);
+    });
+
+    runTest('Array with null value should return the null value.', () => {
+        assert.deepStrictEqual(validateGcpResources([null]), [null]);
+    });
+
+    runTest('Array with undefined value should return the undefined value.', () => {
+        assert.deepStrictEqual(validateGcpResources([undefined]), [undefined]);
+    });
+
+    runTest('Array with number value should return the number value.', () => {
+        assert.deepStrictEqual(validateGcpResources([123]), [123]);
+    });
+
+    runTest('Array with object value should return the object value.', () => {
+        const obj = {};
+        assert.deepStrictEqual(validateGcpResources([obj]), [obj]);
+    });
+}
+
+function runAllTests() {
+    runApiUtilsTests();
+    testInvestigationPath();
+    testIsValidGcpResource();
+
+    console.log('\n====================================');
+    if (testsPassed === totalTests) {
+        console.log(`✅ All ${totalTests} tests passed!`);
+    } else {
+        const testsFailed = totalTests - testsPassed;
+        console.error(`❌ ${testsFailed}/${totalTests} tests failed.\n`);
+        errors.forEach(({ description, error }) => {
+            console.error(`FAIL: ${description}`);
+            console.error(error);
+            console.error('---');
+        });
+    }
+    console.log('====================================');
+    return (testsPassed !== totalTests);
+}
+
+runAllTests();
+

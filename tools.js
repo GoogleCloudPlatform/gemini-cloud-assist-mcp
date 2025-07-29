@@ -18,7 +18,10 @@ import { z } from 'zod';
 import { GeminiCloudAssistClient } from './troubleshooting/api/api.js';
 import { ApiError } from './troubleshooting/api/errors.js';
 import { InvestigationViewer } from './troubleshooting/formatting_utils.js';
-import { createInitialInvestigation } from './troubleshooting/api/utils.js';
+import {
+    createInitialInvestigation,
+    validateGcpResources
+} from './troubleshooting/api/utils.js';
 
 export const registerTools = (server) => {
     server.tool(
@@ -120,6 +123,21 @@ export const registerTools = (server) => {
             relevant_resources,
             start_time
         }) => {
+            const invalid_resources = validateGcpResources(relevant_resources);
+            if (invalid_resources.length > 0) {
+                let error_message = `Error: Invalid resource format for the following resources:\n`;
+                for (const resource of invalid_resources) {
+                    error_message += `- "${resource}"\n`;
+                }
+                error_message += "Resources must be a fully-qualified GCP Resource URI, for example: '//compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance'";
+                return {
+                    content: [{
+                        type: 'text',
+                        text: error_message
+                    }]
+                };
+            }
+
             const client = new GeminiCloudAssistClient();
             const investigation = createInitialInvestigation(
                 title,
@@ -245,6 +263,21 @@ export const registerTools = (server) => {
             relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs for any new resources mentioned in the observation, each starting with '//<service>.googleapis.com/...'. Provide an empty list if no new resources are mentioned."),
         },
         async ({ projectId, investigationId, observation, relevant_resources }) => {
+            const invalid_resources = validateGcpResources(relevant_resources);
+            if (invalid_resources.length > 0) {
+                let error_message = `Error: Invalid resource format for the following resources:\n`;
+                for (const resource of invalid_resources) {
+                    error_message += `- "${resource}"\n`;
+                }
+                error_message += "Resources must be a fully-qualified GCP Resource URI, for example: '//compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance'";
+                return {
+                    content: [{
+                        type: 'text',
+                        text: error_message
+                    }]
+                };
+            }
+
             const client = new GeminiCloudAssistClient();
             try {
                 const result = await client.addObservation({
@@ -254,7 +287,7 @@ export const registerTools = (server) => {
                     relevant_resources,
                 });
                 const viewer = new InvestigationViewer(result);
-                const formattedOutput = viewer.render();
+                const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
                 return {
                     content: [{
                         type: 'text',
