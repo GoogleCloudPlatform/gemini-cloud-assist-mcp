@@ -5,3 +5,4 @@ node_modules/*
 troubleshooting/samples/*
 troubleshooting/api/api.integration.test.js
 scripts/*
+.gemini/

@@ -259,7 +259,7 @@ export const registerTools = (server) => {
         {
             projectId: z.string().describe("The GCP Project ID where the investigation resides."),
             investigationId: z.string().describe("The ID of the investigation."),
-            observation: z.string().describe("The new information or question from the user."),
+            observation: z.string().describe("A detailed description of the observation. This can be a direct observation from the user or the result of a previous tool call. When the user asks to add an observation, add relevant tool calls that were run after the previous run_investigation as the observation. You MUST format the observation to include a brief summary of the finding, the full command that was executed, and the complete, verbatim stdout from the command's result."),
             relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs for any new resources mentioned in the observation, each starting with '//<service>.googleapis.com/...'. Provide an empty list if no new resources are mentioned."),
         },
         async ({ projectId, investigationId, observation, relevant_resources }) => {
