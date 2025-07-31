@@ -27,7 +27,43 @@ const GEMINI_CLOUD_INVESTIGATIONS_BASE_URL = 'https://console.cloud.google.com/t
  * Utility functions for formatting investigation data into human-readable text.
  */
 
-function formatResources(resources) {
+interface KnowledgeUrl {
+    [key: string]: string;
+}
+
+interface TimeRange {
+    startTime: string;
+}
+
+interface FormattedObservation {
+    id?: string;
+    title?: string;
+    systemRelevanceScore?: number;
+    observerType?: string;
+    observationType?: string;
+    text?: string;
+    relevantResources?: string[];
+    knowledgeUrls?: KnowledgeUrl;
+    timeRanges?: TimeRange[];
+}
+
+interface InvestigationSnapshot {
+    name?: string;
+    title?: string;
+    revision?: string;
+    updateTime?: string;
+    observations?: {
+        [key: string]: FormattedObservation;
+    };
+}
+
+interface InvestigationData extends InvestigationSnapshot {
+    snapshot?: InvestigationSnapshot;
+}
+
+
+
+function formatResources(resources: string[]): string[] {
     if (!resources || resources.length === 0) {
         return [];
     }
@@ -36,7 +72,7 @@ function formatResources(resources) {
     return lines;
 }
 
-function formatKnowledgeUrls(links) {
+function formatKnowledgeUrls(links: KnowledgeUrl): string[] {
     if (!links) {
         return [];
     }
@@ -45,11 +81,26 @@ function formatKnowledgeUrls(links) {
     return lines;
 }
 
-function cleanText(text) {
-    return text || '';
+function isJson(str: string): boolean {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
 }
 
-export function getInvestigationLink(projectId, investigationId) {
+function cleanText(text: string | undefined | null): string {
+    if (!text) {
+        return '';
+    }
+    if (isJson(text)) {
+        return '```json\n' + JSON.stringify(JSON.parse(text), null, 2) + '\n```';
+    }
+    return text;
+}
+
+export function getInvestigationLink(projectId: string, investigationId: string): string {
     if (!projectId || !investigationId) {
         return '';
     }
@@ -64,17 +115,22 @@ export function getInvestigationLink(projectId, investigationId) {
 // --- InvestigationViewer Class ---
 
 export class InvestigationViewer {
+    data: InvestigationSnapshot;
+    path: InvestigationPath | null;
+    observations: { [key: string]: FormattedObservation };
+    userTextObservations: { [key: string]: FormattedObservation };
+
     /**
      * A tool to create a well-formatted, human-readable text representation
      * of an investigation JSON object.
      * @param {object} data - The investigation data loaded from JSON.
      */
-    constructor(data) {
+    constructor(data: InvestigationData) {
         if (typeof data !== 'object' || data === null) {
             throw new TypeError('Input data must be an object.');
         }
         this.data = data.snapshot || data;
-        this.path = InvestigationPath.fromInvestigationName(this.data.name);
+        this.path = InvestigationPath.fromInvestigationName(this.data.name || '');
 
 
         this.observations = {};
@@ -94,7 +150,7 @@ export class InvestigationViewer {
         }
     }
 
-    formatIssueSection() {
+    formatIssueSection(): string {
         const userInput = this.observations[PRIMARY_USER_OBSERVATION_ID] || {};
         const startTime = (userInput.timeRanges && userInput.timeRanges[0] && userInput.timeRanges[0].startTime) ? userInput.timeRanges[0].startTime : 'N/A';
         const projectIdentifier = this.path ? this.path.getProjectId() : 'N/A';
@@ -113,13 +169,13 @@ export class InvestigationViewer {
         contentLines.push('**Issue Description**:');
         contentLines.push(cleanText(userInput.text || 'No description provided.'));
         contentLines.push('');
-        contentLines.push(...formatResources(userInput.relevantResources));
+        contentLines.push(...formatResources(userInput.relevantResources || []));
         contentLines.push('');
 
         return contentLines.join('\n');
     }
 
-    formatUserObservationsSection() {
+    formatUserObservationsSection(): string {
         const userObs = Object.values(this.userTextObservations).filter(obs => obs.id !== PRIMARY_USER_OBSERVATION_ID);
 
         if (userObs.length === 0) {
@@ -135,7 +191,7 @@ export class InvestigationViewer {
         return contentLines.join('\n');
     }
 
-    isRelevantObservation(obs) {
+    isRelevantObservation(obs: FormattedObservation): boolean {
         if (!obs.title) return false;
         if ((obs.systemRelevanceScore || -1) < 0) return false;
 
@@ -145,10 +201,10 @@ export class InvestigationViewer {
         if (observerType === 'OBSERVER_TYPE_USER') return false;
         if (obsType === 'OBSERVATION_TYPE_RELATED_RESOURCES') return false;
 
-        return ['OBSERVER_TYPE_DIAGNOSTICS', 'OBSERVER_TYPE_SIGNALS'].includes(observerType);
+        return ['OBSERVER_TYPE_DIAGNOSTICS', 'OBSERVER_TYPE_SIGNALS'].includes(observerType || '');
     }
 
-    formatObservationsSection() {
+    formatObservationsSection(): string {
         const relevantObs = Object.values(this.observations)
             .filter(obs => this.isRelevantObservation(obs))
             .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
@@ -164,7 +220,7 @@ export class InvestigationViewer {
             blockLines.push(`**Type**: ${obsIdType.charAt(0).toUpperCase() + obsIdType.slice(1).toLowerCase()}`);
             blockLines.push('');
             blockLines.push(cleanText(obs.text || 'No text content.'));
-            blockLines.push(...formatResources(obs.relevantResources));
+            blockLines.push(...formatResources(obs.relevantResources || []));
             return blockLines.join('\n');
         });
 
@@ -172,7 +228,7 @@ export class InvestigationViewer {
         return `${sectionTitle}\n\n${observationsDetailsStr}`;
     }
 
-    formatHypothesesSection() {
+    formatHypothesesSection(): string {
         const hypotheses = Object.values(this.observations)
             .filter(obs => obs.observationType === 'OBSERVATION_TYPE_HYPOTHESIS')
             .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
@@ -189,7 +245,7 @@ export class InvestigationViewer {
                 blockLines.push(line.trim().startsWith('*') || line.trim().startsWith('```') ? `  ${line}` : line);
             });
             blockLines.push('');
-            blockLines.push(...formatKnowledgeUrls(hypo.knowledgeUrls));
+            blockLines.push(...formatKnowledgeUrls(hypo.knowledgeUrls || {}));
             return blockLines.join('\n');
         });
 
@@ -197,12 +253,15 @@ export class InvestigationViewer {
         return `${sectionTitle}\n\n${hypothesesDetailsStr}`;
     }
 
-    formatInvestigationLink() {
+    formatInvestigationLink(): string {
         if (!this.path) {
             return '';
         }
         const projectId = this.path.getProjectId();
         const investigationId = this.path.getInvestigationId();
+        if (!projectId || !investigationId) {
+            return '';
+        }
         const link = getInvestigationLink(projectId, investigationId);
         if (!link) {
             return '';
@@ -210,7 +269,7 @@ export class InvestigationViewer {
         return `------------------\nYou can view this investigation in the Google Cloud Console\n${link}\n------------------`;
     }
 
-    render(options = {}) {
+    render(options: { showObservationsAndHypotheses?: boolean } = {}): string {
         const { showObservationsAndHypotheses = true } = options;
 
         const sections = [
@@ -230,8 +289,14 @@ export class InvestigationViewer {
     }
 }
 
+interface InvestigationInfo {
+    name?: string;
+    title?: string;
+    executionState?: string;
+}
+
 // --- Investigation List Formatting ---
-export function formatInvestigationList(investigationsData, nextPageToken) {
+export function formatInvestigationList(investigationsData: InvestigationInfo[], nextPageToken?: string): string {
     if (!investigationsData || investigationsData.length === 0) {
         return 'No investigations found.';
     }

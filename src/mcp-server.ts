@@ -24,8 +24,15 @@ import { readFileSync } from 'fs';
 // Redirect console.log to stderr to not interfere with stdio transport
 const info = console.error;
 
-async function getServer() {
-    const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)));
+interface PackageJson {
+    name: string;
+    version: string;
+    displayName: string;
+    description: string;
+}
+
+async function getServer(): Promise<McpServer> {
+    const packageJson: PackageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)).toString());
     const server = new McpServer({
         name: packageJson.name,
         version: packageJson.version,
@@ -37,7 +44,7 @@ async function getServer() {
     return server;
 }
 
-async function main() {
+async function main(): Promise<void> {
     try {
         const stdioTransport = new StdioServerTransport();
         const server = await getServer();

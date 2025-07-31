@@ -32,12 +32,17 @@ import {
  * `projects/{project}/locations/{location}/investigations/{investigation_id}/revisions/{revision_id}`
  */
 export class InvestigationPath {
+    projectId: string;
+    investigationId?: string;
+    revisionId?: string;
+    location: string;
+
     /**
      * @param {string} projectId The Google Cloud Project ID.
      * @param {string} [investigationId] The ID of a specific investigation.
      * @param {string} [revisionId] The revision ID of a specific investigation.
      */
-    constructor(projectId, investigationId, revisionId) {
+    constructor(projectId: string, investigationId?: string, revisionId?: string) {
         if (!projectId) {
             throw new Error("A projectId is required.");
         }
@@ -52,7 +57,7 @@ export class InvestigationPath {
      * @param {string} resourceName The full GCP resource name.
      * @returns {InvestigationPath | null} A new instance of InvestigationPath or null if parsing fails.
      */
-    static fromInvestigationName(resourceName) {
+    static fromInvestigationName(resourceName: string): InvestigationPath | null {
         if (!resourceName) return null;
 
         const parts = resourceName.split('/');
@@ -61,8 +66,8 @@ export class InvestigationPath {
         }
 
         const projectId = parts[1];
-        let investigationId = null;
-        let revisionId = null;
+        let investigationId: string | undefined = undefined;
+        let revisionId: string | undefined = undefined;
 
         const investigationIndex = parts.indexOf('investigations');
         if (investigationIndex !== -1 && parts.length > investigationIndex + 1) {
@@ -82,7 +87,7 @@ export class InvestigationPath {
      * Format: `projects/{projectId}/locations/{location}`
      * @returns {string}
      */
-    getParent() {
+    getParent(): string {
         return `projects/${this.projectId}/locations/${this.location}`;
     }
 
@@ -91,7 +96,7 @@ export class InvestigationPath {
      * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}`
      * @returns {string}
      */
-    getInvestigationName() {
+    getInvestigationName(): string {
         if (!this.investigationId) {
             throw new Error("Investigation ID is not set.");
         }
@@ -103,7 +108,7 @@ export class InvestigationPath {
      * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}/revisions/{revisionId}`
      * @returns {string}
      */
-    getRevisionName() {
+    getRevisionName(): string {
         if (!this.investigationId || !this.revisionId) {
             throw new Error("Investigation ID and/or Revision ID are not set.");
         }
@@ -114,7 +119,7 @@ export class InvestigationPath {
      * Returns the project ID.
      * @returns {string}
      */
-    getProjectId() {
+    getProjectId(): string {
         return this.projectId;
     }
 
@@ -122,9 +127,30 @@ export class InvestigationPath {
      * Returns the investigation ID.
      * @returns {string | undefined}
      */
-    getInvestigationId() {
+    getInvestigationId(): string | undefined {
         return this.investigationId;
     }
+}
+
+interface TimeRange {
+    startTime: string;
+}
+
+interface Observation {
+    id: string;
+    observerType: string;
+    observationType: string;
+    text: string;
+    relevantResources?: string[];
+    timeRanges?: TimeRange[];
+}
+
+export interface InvestigationPayload {
+    title: string;
+    dataVersion: string;
+    observations: {
+        [key: string]: Observation;
+    };
 }
 
 /**
@@ -137,7 +163,13 @@ export class InvestigationPath {
  * @param {string} start_time The start time of the issue in RFC3339 UTC "Zulu" format.
  * @returns {object} The investigation object payload for the API.
  */
-export function createInitialInvestigation(title, projectId, issue_description, relevant_resources, start_time) {
+export function createInitialInvestigation(
+    title: string,
+    projectId: string,
+    issue_description: string,
+    relevant_resources: string[],
+    start_time: string
+): InvestigationPayload {
     return {
         title: title,
         dataVersion: "2",
@@ -169,8 +201,8 @@ export function createInitialInvestigation(title, projectId, issue_description, 
  * @param {string[]} resources - The list of resource strings to validate.
  * @returns {string[]} - A list of the invalid resource strings. If all are valid, the list is empty.
  */
-export function validateGcpResources(resources) {
-    const invalidResources = [];
+export function validateGcpResources(resources: string[]): string[] {
+    const invalidResources: string[] = [];
     const gcpResourceRegex = /^\/\/(?!www\.)[a-zA-Z0-9-.]+\.googleapis\.com\/((projects|folders|organizations)\/[a-zA-Z0-9-_.]+(\/(.+))?|\S+)$/;
 
     for (const resource of resources) {
@@ -208,12 +240,16 @@ export function validateGcpResources(resources) {
  * @returns {object | null} The payload for the `revisions.create` API call,
  *   or null if the input payload is invalid.
  */
-export function getRevisionWithNewObservation(payload, observationText, relevantResources) {
+export function getRevisionWithNewObservation(
+    payload: InvestigationPayload | null,
+    observationText: string,
+    relevantResources: string[]
+): { snapshot: InvestigationPayload } | null {
     if (!payload) {
         return null;
     }
 
-    const newPayload = JSON.parse(JSON.stringify(payload));
+    const newPayload: InvestigationPayload = JSON.parse(JSON.stringify(payload));
 
     if (!newPayload.observations) {
         newPayload.observations = {};

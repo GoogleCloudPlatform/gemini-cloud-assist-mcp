@@ -1,13 +1,14 @@
 {
   "name": "gemini-cloud-assist-mcp",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "displayName": "Gemini Cloud Assist MCP",
   "type": "module",
-  "bin": "mcp-server.js",
+  "bin": "dist/mcp-server.js",
   "scripts": {
-    "start": "node mcp-server.js",
-    "test:utils_unit": "node troubleshooting/api/utils.test.js",
-    "test:formatting_utils_unit": "node troubleshooting/formatting_utils.test.js"
+    "start": "node dist/mcp-server.js",
+    "build": "tsc",
+    "prestart": "npm run build",
+    "test": "vitest"
   },
   "keywords": [],
   "author": "Google LLC",
@@ -18,5 +19,11 @@
     "google-auth-library": "^10.1.0",
     "googleapis": "^152.0.0",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   }
 }

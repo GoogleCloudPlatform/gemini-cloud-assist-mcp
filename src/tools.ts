@@ -22,8 +22,51 @@ import {
     createInitialInvestigation,
     validateGcpResources
 } from './troubleshooting/api/utils.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-export const registerTools = (server) => {
+
+
+import {
+    AddObservationParams,
+    CreateInvestigationParams,
+    FetchInvestigationParams,
+    RunInvestigationParams
+} from './troubleshooting/api/types.js';
+
+const _validateGcpResourcesAndThrow = (resources: string[]) => {
+    const invalid_resources = validateGcpResources(resources);
+    if (invalid_resources.length > 0) {
+        let error_message = `Error: Invalid resource format for the following resources:\n`;
+        for (const resource of invalid_resources) {
+            error_message += `- "${resource}"\n`;
+        }
+        error_message += "Resources must be a fully-qualified GCP Resource URI, for example: '//compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance'";
+        throw new ApiError(error_message, 400, 'INVALID_ARGUMENT');
+    }
+};
+
+async function toolWrapper<T>(
+    cb: () => Promise<CallToolResult>
+): Promise<CallToolResult> {
+    try {
+        return await cb();
+    } catch (error: any) {
+        if (error instanceof ApiError) {
+            return error.toToolResult();
+        }
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: error instanceof Error ? error.message : String(error),
+                },
+            ],
+        };
+    }
+}
+
+export const registerTools = (server: McpServer): void => {
     server.tool(
         "fetch_investigation",
         `/**
@@ -48,37 +91,25 @@ export const registerTools = (server) => {
             revisionId: z.string().optional().describe("The revision ID of a specific investigation to fetch. Requires `investigationId` to be set."),
             filter_expression: z.string().optional().describe('A string to filter investigations by title. The filter format is `title:"<your_title>"`.'),
         },
-        async ({ projectId, investigationId, revisionId, filter_expression }) => {
+        (params: FetchInvestigationParams) => toolWrapper(async () => {
+            const { projectId, investigationId, revisionId, filter_expression } = params;
             if (revisionId && !investigationId) {
-                return {
-                    content: [{
-                        type: 'text',
-                        text: "The 'revisionId' parameter cannot be used without 'investigationId'."
-                    }]
-                };
+                throw new ApiError(
+                    "The 'revisionId' parameter cannot be used without 'investigationId'.",
+                    400,
+                    'INVALID_ARGUMENT'
+                );
             }
 
             const client = new GeminiCloudAssistClient();
-            try {
-                const result = await client.fetchInvestigation({ projectId, investigationId, revisionId, filter_expression });
-                return {
-                    content: [{
-                        type: 'text',
-                        text: result
-                    }]
-                };
-            } catch (error) {
-                return {
-                    content: [{
-                        type: 'text',
-                        text: error.message
-                    }]
-                };
-            }
-        },
-        {
-            'mcp:tool-class': 'read-only'
-        }
+            const result = await client.fetchInvestigation({ projectId, investigationId, revisionId, filter_expression });
+            return {
+                content: [{
+                    type: 'text',
+                    text: result
+                }]
+            };
+        })
     );
 
     server.tool(
@@ -116,27 +147,15 @@ export const registerTools = (server) => {
             relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs, each starting with '//<service>.googleapis.com/...'. For example: '//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/my-instance-name'."),
             start_time: z.string().describe("The investigation start time, formatted as 'YYYY-MM-DDTHH:mm:ssZ' (UTC).")
         },
-        async ({
-            projectId,
-            title,
-            issue_description,
-            relevant_resources,
-            start_time
-        }) => {
-            const invalid_resources = validateGcpResources(relevant_resources);
-            if (invalid_resources.length > 0) {
-                let error_message = `Error: Invalid resource format for the following resources:\n`;
-                for (const resource of invalid_resources) {
-                    error_message += `- "${resource}"\n`;
-                }
-                error_message += "Resources must be a fully-qualified GCP Resource URI, for example: '//compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance'";
-                return {
-                    content: [{
-                        type: 'text',
-                        text: error_message
-                    }]
-                };
-            }
+        (params: CreateInvestigationParams) => toolWrapper(async () => {
+            const {
+                projectId,
+                title,
+                issue_description,
+                relevant_resources,
+                start_time
+            } = params;
+            _validateGcpResourcesAndThrow(relevant_resources);
 
             const client = new GeminiCloudAssistClient();
             const investigation = createInitialInvestigation(
@@ -147,26 +166,17 @@ export const registerTools = (server) => {
                 start_time
             );
 
-            try {
-                const result = await client.createInvestigation(projectId, investigation);
-                const viewer = new InvestigationViewer(result);
-                const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
+            const result = await client.createInvestigation(projectId, investigation);
+            const viewer = new InvestigationViewer(result);
+            const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
 
-                return {
-                    content: [{
-                        type: 'text',
-                        text: formattedOutput
-                    }]
-                };
-            } catch (error) {
-                return {
-                    content: [{
-                        type: 'text',
-                        text: error.message
-                    }]
-                };
-            }
-        }
+            return {
+                content: [{
+                    type: 'text',
+                    text: formattedOutput
+                }]
+            };
+        })
     );
 
     server.tool(
@@ -188,6 +198,7 @@ export const registerTools = (server) => {
  *           'Hypotheses', 'Relevant Observations', and 'Remediation'.
  *           **Note:** Some sections may be empty and will state "No hypotheses
  *           found." or similar. Your job is to parse this report and present
+
  *           a clear summary of the findings (or lack thereof) to the user.
  */`,
         {
@@ -195,39 +206,31 @@ export const registerTools = (server) => {
             investigationId: z.string().describe("The ID of the investigation to run."),
             revisionId: z.string().describe("The specific revision ID to run."),
         },
-        async ({
-            projectId,
-            investigationId,
-            revisionId
-        }) => {
+        (params: RunInvestigationParams) => toolWrapper(async () => {
+            const {
+                projectId,
+                investigationId,
+                revisionId
+            } = params;
             const client = new GeminiCloudAssistClient();
 
-            try {
-                // This is a blocking call that waits for the LRO to complete
-                // and returns the final investigation object.
-                const finalInvestigation = await client.runInvestigation({ projectId, investigationId, revisionId });
+            // This is a blocking call that waits for the LRO to complete
+            // and returns the final investigation object.
+            const finalInvestigation = await client.runInvestigation({ projectId, investigationId, revisionId });
 
-                // The run is complete. Now, format the final investigation report
-                // using the object we already have.
-                const viewer = new InvestigationViewer(finalInvestigation);
-                const formattedOutput = viewer.render();
+            // The run is complete. Now, format the final investigation report
+            // using the object we already have.
+            const viewer = new InvestigationViewer(finalInvestigation);
+            const formattedOutput = viewer.render();
 
 
-                return {
-                    content: [{
-                        type: 'text',
-                        text: formattedOutput
-                    }]
-                };
-            } catch (error) {
-                return {
-                    content: [{
-                        type: 'text',
-                        text: error.message
-                    }]
-                };
-            }
-        }
+            return {
+                content: [{
+                    type: 'text',
+                    text: formattedOutput
+                }]
+            };
+        })
     );
 
     server.tool(
@@ -262,46 +265,25 @@ export const registerTools = (server) => {
             observation: z.string().describe("A detailed description of the observation. This can be a direct observation from the user or the result of a previous tool call. When the user asks to add an observation, add relevant tool calls that were run after the previous run_investigation as the observation. You MUST format the observation to include a brief summary of the finding, the full command that was executed, and the complete, verbatim stdout from the command's result."),
             relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs for any new resources mentioned in the observation, each starting with '//<service>.googleapis.com/...'. Provide an empty list if no new resources are mentioned."),
         },
-        async ({ projectId, investigationId, observation, relevant_resources }) => {
-            const invalid_resources = validateGcpResources(relevant_resources);
-            if (invalid_resources.length > 0) {
-                let error_message = `Error: Invalid resource format for the following resources:\n`;
-                for (const resource of invalid_resources) {
-                    error_message += `- "${resource}"\n`;
-                }
-                error_message += "Resources must be a fully-qualified GCP Resource URI, for example: '//compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance'";
-                return {
-                    content: [{
-                        type: 'text',
-                        text: error_message
-                    }]
-                };
-            }
+        (params: AddObservationParams) => toolWrapper(async () => {
+            const { projectId, investigationId, observation, relevant_resources } = params;
+            _validateGcpResourcesAndThrow(relevant_resources);
 
             const client = new GeminiCloudAssistClient();
-            try {
-                const result = await client.addObservation({
-                    projectId,
-                    investigationId,
-                    observation,
-                    relevant_resources,
-                });
-                const viewer = new InvestigationViewer(result);
-                const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
-                return {
-                    content: [{
-                        type: 'text',
-                        text: formattedOutput
-                    }]
-                };
-            } catch (error) {
-                return {
-                    content: [{
-                        type: 'text',
-                        text: error.message
-                    }]
-                };
-            }
-        }
+            const result = await client.addObservation({
+                projectId,
+                investigationId,
+                observation,
+                relevant_resources,
+            });
+            const viewer = new InvestigationViewer(result);
+            const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
+            return {
+                content: [{
+                    type: 'text',
+                    text: formattedOutput
+                }]
+            };
+        })
     );
 };

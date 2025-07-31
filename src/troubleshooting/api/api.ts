@@ -34,7 +34,8 @@ import {
 } from './errors.js';
 import {
     getRevisionWithNewObservation,
-    InvestigationPath
+    InvestigationPath,
+    InvestigationPayload
 } from './utils.js';
 import {
     DISCOVERY_API_URL,
@@ -43,92 +44,124 @@ import {
     BACKOFF_FACTOR,
     MAX_POLLING_ATTEMPTS
 } from './constants.js';
-import packageJson from '../../package.json' with { type: 'json' };
+import {
+    AddObservationParams,
+    CreateInvestigationParams,
+    FetchInvestigationParams,
+    GetInvestigationParams,
+    RunInvestigationParams
+} from './types.js';
+import packageJson from '../../../package.json' with {
+    type: 'json'
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const userAgent = `gemini-cloud-assist-mcp/${packageJson.version}`;
 
+interface Logger {
+    info(message: string, ...args: any[]): void;
+    error(message: string, ...args: any[]): void;
+    warn(message: string, ...args: any[]): void;
+    debug(message: string, ...args: any[]): void;
+}
+
+interface GeminiCloudAssistClientOptions {
+    logger?: Logger;
+    enableDebugLogging?: boolean;
+}
+
+interface ListInvestigationsParams {
+    projectId: string;
+    filter?: string;
+}
+
 export class GeminiCloudAssistClient {
-    constructor(options = {}) {
+    private logger: Logger;
+    private auth: GoogleAuth;
+    private geminiassist: any;
+    private enableDebugLogging: boolean;
+    private isInitialized: boolean;
+    private licenseValidated: boolean;
+
+    constructor(options: GeminiCloudAssistClientOptions = {}) {
         const {
-            logger = null,
-            enableDebugLogging = false,
+            logger = console,
+                enableDebugLogging = false,
         } = options;
 
-        this.logger = logger || {
-            info: () => { },
-            error: () => { },
-            warn: () => { },
-            debug: () => { }
-        };
-
-        this.auth = this._initAuth(userAgent);
-        this.geminiassist = null;
+        this.logger = logger;
         this.enableDebugLogging = enableDebugLogging;
         this.isInitialized = false;
         this.licenseValidated = false;
+        this.auth = this._initAuth(userAgent);
+        this.geminiassist = null;
     }
 
-    async _ensureReady({ requireLicense = false }) {
-        if (!this.isInitialized) {
+    private async _ensureReady({
+        requireLicense = false
+    }: {
+        requireLicense?: boolean
+    }): Promise < void > {
+        if (this.isInitialized) {
+            if (requireLicense) {
+                await this._validateLicense();
+            }
+            return;
+        }
+
+        try {
             await this._validateAuth();
             await this._discoverApi();
             this.isInitialized = true;
-        }
-        if (requireLicense) {
-            await this._validateLicense();
-        }
-    }
 
-    async _validateAuth() {
-        try {
-            // The act of getting a token is the validation.
-            await this.auth.getAccessToken();
-            this.logger.info('Authentication successful.');
+            if (requireLicense) {
+                await this._validateLicense();
+            }
         } catch (error) {
-            this.logger.error('Authentication failed:', error.message);
-            throw new ApiError(`Authentication failed. Please check your Application Default Credentials. Try running 'gcloud auth application-default login'. ${error.message}`, 'AUTH_FAILED');
+            this.isInitialized = false;
+            throw error;
         }
     }
 
-    async _validateLicense() {
+    private async _validateAuth(): Promise<void> {
+        try {
+            await this.auth.getAccessToken();
+            this.logger.error('Authentication successful.'); // Info Logs can corrupt JSON Payloads from Tool Call Response.
+        } catch (error: any) {
+            this.logger.error('Authentication failed:', error.message);
+            throw new ApiError(`Authentication failed. Please check your Application Default Credentials. Try running 'gcloud auth application-default login'. ${error.message}`, 401, 'AUTH_FAILED');
+        }
+    }
+
+    private async _validateLicense(): Promise<void> {
         if (this.licenseValidated) {
             return;
         }
-        // Placeholder for license validation logic
-        this.logger.debug('Placeholder: License validation check would occur here.');
+        this.logger.error('Placeholder: License validation check would occur here.');
         this.licenseValidated = true;
     }
 
-    _initAuth(userAgent) {
+    private _initAuth(userAgent: string): GoogleAuth {
         const authOptions = {
             scopes: 'https://www.googleapis.com/auth/cloud-platform',
-            clientOptions: {
-                headers: {
-                    'User-Agent': userAgent,
-                },
-            }
         };
 
-        this.logger.info('Authenticating with Application Default Credentials (ADC).');
+        this.logger.error('Authenticating with Application Default Credentials (ADC).');
         return new GoogleAuth(authOptions);
     }
 
-    async _discoverApi() {
-        let discoveryOptions = {
-            url: DISCOVERY_API_URL
-        }
+    private async _discoverApi(): Promise<void> {
         try {
-            this.geminiassist = await google.discoverAPI(discoveryOptions);
-        } catch (error) {
+            this.geminiassist = await google.discoverAPI(DISCOVERY_API_URL);
+        } catch (error: any) {
             this.logger.error('Error discovering Gemini Cloud Assist API:', error.message);
-            throw new ApiError(`Failed to discover API. ${error.message}`, 'API_DISCOVERY_FAILED');
+            throw new ApiError(`Failed to discover API. ${error.message}`, 500, 'API_DISCOVERY_FAILED');
         }
     }
 
-    async _writeLog(methodName, type, data) {
+    private async _writeLog(methodName: string, type: string, data: any): Promise<void> {
         if (!this.enableDebugLogging) {
             return;
         }
@@ -147,52 +180,23 @@ export class GeminiCloudAssistClient {
             }
 
             await fs.promises.writeFile(filePath, JSON.stringify(dataForLog, null, 2));
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error(`Failed to write log for ${methodName}:`, error);
         }
     }
 
-    /**
-     * Fetches Gemini Cloud Assist troubleshooting investigations.
-     *
-     * This function serves as a versatile entry point for retrieving investigation data.
-     * It can operate in two modes:
-     *
-     * 1.  **List Mode:** If only a `projectId` is provided, it will list all
-     *     troubleshooting investigations associated with that project. It can be
-     *     optionally filtered by title using the `filter_expression` parameter.
-     *
-     * 2.  **Get Mode:** If an `investigationId` is provided, it will fetch the
-     *     detailed report for that specific investigation. If a `revisionId` is
-     *     also provided, it fetches that particular revision; otherwise, it
-     *     retrieves the latest version.
-     *
-     * The function handles constructing the correct API request based on the
-     * presence of `investigationId` and `revisionId`.
-     *
-     * @param {object} params The parameters for fetching investigations.
-     * @param {string} params.projectId The Google Cloud Project ID.
-     * @param {string} [params.investigationId] Optional. The ID of a specific
-     *   investigation to fetch. If omitted, the function will list all
-     *   investigations for the project.
-     * @param {string} [params.revisionId] Optional. The revision ID of a specific
-     *   investigation to fetch. Requires `investigationId` to be set.
-     * @param {string} [params.filter_expression] Optional. A string to filter
-     *   investigations by title. The filter format is `title:"<your_title>"`.
-     * @returns {Promise<string>} A promise that resolves to a formatted string
-     *   containing either the list of investigations or the details of a
-     *   single investigation. In case of an error, it returns a formatted
-     *   error message.
-     */
-    async fetchInvestigation({
-        projectId,
-        investigationId,
-        revisionId,
-        filter_expression
-    }) {
-        await this._ensureReady({ requireLicense: true });
+    async fetchInvestigation(params: FetchInvestigationParams): Promise<string> {
+        await this._ensureReady({
+            requireLicense: true
+        });
+        const {
+            projectId,
+            investigationId,
+            revisionId,
+            filter_expression
+        } = params;
         if (revisionId && !investigationId) {
-            return Promise.reject(new ApiError("revisionId cannot be provided without investigationId.", 'INVALID_ARGUMENT'));
+            return Promise.reject(new ApiError("revisionId cannot be provided without investigationId.", 400, 'INVALID_ARGUMENT'));
         }
 
         if (investigationId) {
@@ -209,17 +213,11 @@ export class GeminiCloudAssistClient {
         }
     }
 
-    /**
-     * Lists all Gemini Cloud Assist troubleshooting investigations for a given project.
-     * (Internal use, called by fetchInvestigation)
-     * @param {string} projectId The Google Cloud Project ID.
-     * @param {string} [filter=""] Optional. A filter expression to apply to the results.
-     * @returns {Promise<string>} A formatted string of investigations or an error message.
-     */
-    async _listInvestigations({
-        projectId,
-        filter = ""
-    }) {
+    private async _listInvestigations(params: ListInvestigationsParams): Promise<string> {
+        const {
+            projectId,
+            filter = ""
+        } = params;
         const path = new InvestigationPath(projectId);
 
         try {
@@ -240,10 +238,10 @@ export class GeminiCloudAssistClient {
                 return "No investigations found.";
             }
 
-            let formattedOutput = investigations.map(inv => {
+            let formattedOutput = investigations.map((inv: any) => {
                 const invPath = InvestigationPath.fromInvestigationName(inv.name);
                 const invId = invPath ? invPath.getInvestigationId() : 'N/A';
-                const link = getInvestigationLink(projectId, invId);
+                const link = getInvestigationLink(projectId, invId || '');
                 return `Investigation ID: ${invId}\nTitle: ${inv.title}\nState: ${inv.executionState}\nLink: ${link}`;
             }).join('\n\n');
 
@@ -253,30 +251,22 @@ export class GeminiCloudAssistClient {
 
             return formattedOutput;
 
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error('Error fetching investigations:', error.message);
-            // Assuming a similar error formatting as the Python version
             const details = error.response ? error.response.data : 'No details available.';
-            throw new ApiError(`Error listing investigations: ${error.message}`, 'LIST_FAILED', details);
+            throw new ApiError(`Error listing investigations: ${error.message}`, 500, details);
         }
     }
 
-    /**
-     * Creates a new troubleshooting investigation.
-     *
-     * @param {string} projectId The Google Cloud Project ID.
-     * @param {object} investigation The investigation object to create.
-     * @returns {Promise<object>} The created investigation object.
-     */
-    async createInvestigation(projectId, investigation) {
-        await this._ensureReady({ requireLicense: true });
+    async createInvestigation(projectId: string, investigation: InvestigationPayload): Promise<any> {
+        await this._ensureReady({
+            requireLicense: true
+        });
         const path = new InvestigationPath(projectId);
 
         try {
-            // Deep copy to avoid side effects
             const investigationForRequest = JSON.parse(JSON.stringify(investigation));
 
-            // Convert deprecated timeRanges to timeIntervals for backward compatibility
             if (investigationForRequest.observations) {
                 for (const key in investigationForRequest.observations) {
                     if (Object.prototype.hasOwnProperty.call(investigationForRequest.observations, key)) {
@@ -300,30 +290,21 @@ export class GeminiCloudAssistClient {
             const res = await this.geminiassist.projects.locations.investigations.create(request);
             await this._writeLog('createInvestigation', 'output', res.data);
             return res.data;
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error('Error creating investigation:', error.message);
             const details = error.response ? error.response.data : 'No details available.';
-            throw new ApiError(`Error creating investigation: ${error.message}`, 'CREATE_FAILED', details);
+            throw new ApiError(`Error creating investigation: ${error.message}`, 500, details);
         }
     }
 
-    /**
-     * Runs a troubleshooting investigation, which is a long-running operation (LRO).
-     * This method initiates the investigation and then polls the resulting operation
-     * until it is complete.
-     *
-     * @param {object} params The parameters for running an investigation.
-     * @param {string} params.projectId The Google Cloud Project ID.
-     * @param {string} params.investigationId The ID of the investigation to run.
-     * @param {string} params.revisionId The revision ID of the investigation to run.
-     * @returns {Promise<object>} The final, completed investigation object.
-     */
-    async runInvestigation({
-        projectId,
-        investigationId,
-        revisionId
-    }) {
+
+    async runInvestigation(params: RunInvestigationParams): Promise<any> {
         await this._ensureReady({ requireLicense: true });
+        const {
+            projectId,
+            investigationId,
+            revisionId
+        } = params;
         const path = new InvestigationPath(projectId, investigationId, revisionId);
 
         try {
@@ -361,11 +342,8 @@ export class GeminiCloudAssistClient {
 
                 if (opRes.data.done) {
                     if (opRes.data.error) {
-                        throw new ApiError('Investigation operation failed', 'OPERATION_ERROR', opRes.data.error);
+                        throw new ApiError('Investigation operation failed', 500, opRes.data.error);
                     }
-                    // The operation is complete, but the response field may not contain the
-                    // full investigation details. Fetch the investigation explicitly to ensure
-                    // we have the complete, final object.
                     return this._getInvestigationRaw({
                         projectId,
                         investigationId,
@@ -379,35 +357,26 @@ export class GeminiCloudAssistClient {
                 projectId,
                 investigationId
             });
-            throw new ApiError('Investigation did not complete within the timeout period.', 'TIMEOUT_ERROR', {
+            throw new ApiError('Investigation did not complete within the timeout period.', 504, {
                 currentStatus: investigationData
             });
 
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error('Error running investigation:', error.message);
             if (error instanceof ApiError) {
                 throw error;
             }
             const details = error.response ? error.response.data : 'No details available.';
-            throw new ApiError(`Error running investigation: ${error.message}`, 'RUN_FAILED', details);
+            throw new ApiError(`Error running investigation: ${error.message}`, 500, details);
         }
     }
 
-    /**
-     * Gets the raw investigation object from the API.
-     *
-     * @param {object} params The parameters for getting an investigation.
-     * @param {string} params.projectId The Google Cloud Project ID.
-     * @param {string} params.investigationId The ID of the investigation to get.
-     * @param {string} [params.revisionId] Optional. The revision ID of the investigation to get.
-     * @param {string} [logSuffix=''] Optional suffix for the log file name.
-     * @returns {Promise<object>} The raw investigation object.
-     */
-    async _getInvestigationRaw({
-        projectId,
-        investigationId,
-        revisionId
-    }, logSuffix = '') {
+    private async _getInvestigationRaw(params: GetInvestigationParams, logSuffix = ''): Promise<any> {
+        const {
+            projectId,
+            investigationId,
+            revisionId
+        } = params;
         const path = new InvestigationPath(projectId, investigationId, revisionId);
         const investigationName = revisionId ? path.getRevisionName() : path.getInvestigationName();
 
@@ -420,66 +389,33 @@ export class GeminiCloudAssistClient {
             const res = await this.geminiassist.projects.locations.investigations.get(request);
             await this._writeLog(`_getInvestigationRaw${logSuffix}`, 'output', res.data);
             return res.data;
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error(`Error getting raw investigation '${investigationName}':`, error.message);
             const details = error.response ? error.response.data : 'No details available.';
-            throw new ApiError(`Error getting raw investigation: ${error.message}`, 'GET_FAILED', details);
+            throw new ApiError(`Could not find Investigation ID: ${investigationId}`, 404, details);
         }
     }
 
-    /**
-     * Gets a troubleshooting investigation and formats it for display.
-     *
-     * @param {object} params The parameters for getting an investigation.
-     * @param {string} params.projectId The Google Cloud Project ID.
-     * @param {string} params.investigationId The ID of the investigation to get.
-     * @param {string} [params.revisionId] Optional. The revision ID of the investigation to get.
-     * @returns {Promise<string>} A formatted string representing the investigation.
-     */
-    async getInvestigation({
-        projectId,
-        investigationId,
-        revisionId
-    }) {
+    async getInvestigation(params: GetInvestigationParams): Promise<string> {
         await this._ensureReady({ requireLicense: true });
         try {
-            const rawInvestigation = await this._getInvestigationRaw({
-                projectId,
-                investigationId,
-                revisionId
-            }, 'getInvestigation');
+            const rawInvestigation = await this._getInvestigationRaw(params, 'getInvestigation');
             const viewer = new InvestigationViewer(rawInvestigation);
             return viewer.render();
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error('Error getting investigation:', error.message);
-            // The error from _getInvestigationRaw is already detailed.
-            // We re-throw it to ensure the caller gets a proper Promise rejection.
             throw error;
         }
     }
 
-    /**
-     * Adds a new user observation to an existing investigation, creating a new revision.
-     *
-     * This method fetches the latest revision of an investigation and appends the
-     * new user-provided observation and resources to the primary user observation
-     * entry. It then creates a new revision with this updated payload.
-     *
-     * @param {object} params The parameters for adding an observation.
-     * @param {string} params.projectId The Google Cloud Project ID.
-     * @param {string} params.investigationId The ID of the investigation.
-     * @param {string} params.observation The new information or question from the user.
-     * @param {string[]} params.relevant_resources A list of fully-resolved resource URIs.
-     * @returns {Promise<object>} A promise that resolves to the raw API response
-     *   for the newly created investigation revision.
-     */
-    async addObservation({
-        projectId,
-        investigationId,
-        observation,
-        relevant_resources
-    }) {
+    async addObservation(params: AddObservationParams): Promise<any> {
         await this._ensureReady({ requireLicense: true });
+        const {
+            projectId,
+            investigationId,
+            observation,
+            relevant_resources
+        } = params;
         try {
             const latestRevision = await this._getInvestigationRaw({
                 projectId,
@@ -489,7 +425,7 @@ export class GeminiCloudAssistClient {
             const newRevisionPayload = getRevisionWithNewObservation(latestRevision, observation, relevant_resources);
 
             if (!newRevisionPayload) {
-                throw new ApiError("Failed to create new revision payload.", 'PAYLOAD_CREATION_FAILED');
+                throw new ApiError("Failed to create new revision payload.", 500, 'PAYLOAD_CREATION_FAILED');
             }
 
             const path = new InvestigationPath(projectId, investigationId);
@@ -505,13 +441,13 @@ export class GeminiCloudAssistClient {
 
             return res.data;
 
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error('Error adding observation:', error.message);
             if (error instanceof ApiError) {
                 throw error;
             }
             const details = error.response ? error.response.data : 'No details available.';
-            throw new ApiError(`Error adding an observation to investigation: ${error.message}`, 'ADD_OBSERVATION_FAILED', details);
+            throw new ApiError(`Error adding an observation to investigation: ${error.message}`, 500, details);
         }
     }
 }
