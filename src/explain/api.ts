@@ -15,36 +15,11 @@ limitations under the License.
 */
 
 import {
-    GoogleAuth
-} from 'google-auth-library';
-import fs from 'fs';
-import path from 'path';
-import {
-    fileURLToPath
-} from 'url';
-import {
     ApiError
-} from '../troubleshooting/api/errors.js';
-import packageJson from '../../package.json' with {
-    type: 'json'
-};
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const userAgent = `gemini-cloud-assist-mcp/${packageJson.version}`;
-
-interface Logger {
-    info(message: string, ...args: any[]): void;
-    error(message: string, ...args: any[]): void;
-    warn(message: string, ...args: any[]): void;
-    debug(message: string, ...args: any[]): void;
-}
-
-interface CloudAiCompanionClientOptions {
-    logger?: Logger;
-    enableDebugLogging?: boolean;
-}
+} from '../shared/errors.js';
+import {
+    BaseClient
+} from '../shared/base_client.js';
 
 export interface RetrieveResourceParams {
     content: string;
@@ -63,55 +38,7 @@ interface TaskCompletionResponse {
     output: TaskCompletionOutput;
 }
 
-export class CloudAiCompanionClient {
-    private logger: Logger;
-    private auth: GoogleAuth;
-    private enableDebugLogging: boolean;
-
-    constructor(options: CloudAiCompanionClientOptions = {}) {
-        const {
-            logger = console,
-                enableDebugLogging = false,
-        } = options;
-
-        this.logger = logger;
-        this.enableDebugLogging = enableDebugLogging;
-        this.auth = this._initAuth(userAgent);
-    }
-
-    private _initAuth(userAgent: string): GoogleAuth {
-        const authOptions = {
-            scopes: 'https://www.googleapis.com/auth/cloud-platform',
-        };
-
-        this.logger.error('Authenticating with Application Default Credentials (ADC).');
-        return new GoogleAuth(authOptions);
-    }
-
-    private async _writeLog(methodName: string, type: string, data: any): Promise<void> {
-        if (!this.enableDebugLogging) {
-            return;
-        }
-        const dir = path.join(__dirname, '..', 'samples');
-        try {
-            await fs.promises.mkdir(dir, {
-                recursive: true
-            });
-            const filePath = path.join(dir, `${methodName}_${type}.json`);
-
-            const dataForLog = {
-                ...data
-            };
-            if (dataForLog.auth) {
-                delete dataForLog.auth;
-            }
-
-            await fs.promises.writeFile(filePath, JSON.stringify(dataForLog, null, 2));
-        } catch (error: any) {
-            this.logger.error(`Failed to write log for ${methodName}:`, error);
-        }
-    }
-
+export class CloudAiCompanionClient extends BaseClient {
     async retrieveResource(params: RetrieveResourceParams): Promise<any> {
         const {
             content

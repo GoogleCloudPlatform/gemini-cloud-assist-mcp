@@ -5,3 +5,4 @@ api.integration.local.js
 scripts/*
 .gemini/
 dist/*
+install.sh

@@ -14,6 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-export * from './api.js';
-export * from './constants.js';
-export * from './utils.js';
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+export class ApiError extends Error {
+    code: number;
+    details: any;
+    constructor(message: string, code: number, details: any) {
+        super(message);
+        this.name = 'ApiError';
+        this.code = code;
+        this.details = details;
+    }
+    toToolResult(): CallToolResult {
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: this.message,
+                },
+            ],
+        };
+    }
+}

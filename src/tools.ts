@@ -16,7 +16,7 @@ limitations under the License.
 
 import { z } from 'zod';
 import { GeminiCloudAssistClient } from './troubleshooting/api/api.js';
-import { ApiError } from './troubleshooting/api/errors.js';
+import { ApiError } from './shared/errors.js';
 import { InvestigationViewer } from './troubleshooting/formatting_utils.js';
 import {
     createInitialInvestigation,

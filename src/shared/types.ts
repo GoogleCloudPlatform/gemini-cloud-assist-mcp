@@ -14,6 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-export * from './api.js';
-export * from './constants.js';
-export * from './utils.js';
+export interface Logger {
+    info(message: string, ...args: any[]): void;
+    error(message: string, ...args: any[]): void;
+    warn(message: string, ...args: any[]): void;
+    debug(message: string, ...args: any[]): void;
+}
+
+export interface BaseClientOptions {
+    logger?: Logger;
+    enableDebugLogging?: boolean;
+}

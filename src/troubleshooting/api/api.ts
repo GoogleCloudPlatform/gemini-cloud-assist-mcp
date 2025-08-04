@@ -18,20 +18,12 @@ import {
     google
 } from 'googleapis';
 import {
-    GoogleAuth
-} from 'google-auth-library';
-import fs from 'fs';
-import path from 'path';
-import {
-    fileURLToPath
-} from 'url';
-import {
     InvestigationViewer,
     getInvestigationLink
 } from '../formatting_utils.js';
 import {
     ApiError
-} from './errors.js';
+} from '../../shared/errors.js';
 import {
     getRevisionWithNewObservation,
     InvestigationPath,
@@ -46,57 +38,32 @@ import {
 } from './constants.js';
 import {
     AddObservationParams,
-    CreateInvestigationParams,
     FetchInvestigationParams,
     GetInvestigationParams,
+    ListInvestigationsParams,
     RunInvestigationParams
 } from './types.js';
-import packageJson from '../../../package.json' with {
-    type: 'json'
-};
+import {
+    BaseClient
+} from '../../shared/base_client.js';
+import {
+    BaseClientOptions
+} from '../../shared/types.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const userAgent = `gemini-cloud-assist-mcp/${packageJson.version}`;
-
-interface Logger {
-    info(message: string, ...args: any[]): void;
-    error(message: string, ...args: any[]): void;
-    warn(message: string, ...args: any[]): void;
-    debug(message: string, ...args: any[]): void;
-}
-
-interface GeminiCloudAssistClientOptions {
-    logger?: Logger;
-    enableDebugLogging?: boolean;
-}
-
-interface ListInvestigationsParams {
-    projectId: string;
-    filter?: string;
-}
-
-export class GeminiCloudAssistClient {
-    private logger: Logger;
-    private auth: GoogleAuth;
+export class GeminiCloudAssistClient extends BaseClient {
     private geminiassist: any;
-    private enableDebugLogging: boolean;
     private isInitialized: boolean;
     private licenseValidated: boolean;
 
-    constructor(options: GeminiCloudAssistClientOptions = {}) {
-        const {
-            logger = console,
-                enableDebugLogging = false,
-        } = options;
-
-        this.logger = logger;
-        this.enableDebugLogging = enableDebugLogging;
+    constructor(options: BaseClientOptions = {}) {
+        super(options);
         this.isInitialized = false;
         this.licenseValidated = false;
-        this.auth = this._initAuth(userAgent);
         this.geminiassist = null;
+    }
+
+    protected _initAuth() {
+        return super._initAuth();
     }
 
     private async _ensureReady({
@@ -143,45 +110,12 @@ export class GeminiCloudAssistClient {
         this.licenseValidated = true;
     }
 
-    private _initAuth(userAgent: string): GoogleAuth {
-        const authOptions = {
-            scopes: 'https://www.googleapis.com/auth/cloud-platform',
-        };
-
-        this.logger.error('Authenticating with Application Default Credentials (ADC).');
-        return new GoogleAuth(authOptions);
-    }
-
     private async _discoverApi(): Promise<void> {
         try {
             this.geminiassist = await google.discoverAPI(DISCOVERY_API_URL);
         } catch (error: any) {
             this.logger.error('Error discovering Gemini Cloud Assist API:', error.message);
             throw new ApiError(`Failed to discover API. ${error.message}`, 500, 'API_DISCOVERY_FAILED');
-        }
-    }
-
-    private async _writeLog(methodName: string, type: string, data: any): Promise<void> {
-        if (!this.enableDebugLogging) {
-            return;
-        }
-        const dir = path.join(__dirname, '..', 'samples');
-        try {
-            await fs.promises.mkdir(dir, {
-                recursive: true
-            });
-            const filePath = path.join(dir, `${methodName}_${type}.json`);
-
-            const dataForLog = {
-                ...data
-            };
-            if (dataForLog.auth) {
-                delete dataForLog.auth;
-            }
-
-            await fs.promises.writeFile(filePath, JSON.stringify(dataForLog, null, 2));
-        } catch (error: any) {
-            this.logger.error(`Failed to write log for ${methodName}:`, error);
         }
     }
 

@@ -48,3 +48,8 @@ export interface AddObservationParams {
     observation: string;
     relevant_resources: string[];
 }
+
+export interface ListInvestigationsParams {
+    projectId: string;
+    filter?: string;
+}
