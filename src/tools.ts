@@ -24,6 +24,7 @@ import {
 } from './troubleshooting/api/utils.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CloudAiCompanionClient, RetrieveResourceParams } from './explain/api.js'
 
 
 
@@ -117,7 +118,7 @@ export const registerTools = (server: McpServer): void => {
         `/**
  * Creates a new Gemini Cloud Assist Investigation. This tool is the primary entry point for initiating any new troubleshooting analysis.
  *
- * Prerequisites: 
+ * Prerequisites:
  * Argument Resolution: Before invoking this tool, you **MUST** resolve all user-provided information into the specific formats required by the arguments.
  *
  * Resource URI Mandate: The 'relevant_resources' parameter requires a list of full Google Cloud Platform (GCP) resource URIs.
@@ -125,7 +126,7 @@ export const registerTools = (server: McpServer): void => {
  * - **Validation:** The tool will fail if the provided strings are not well-formed URIs in this exact format.
  * - **Resolution:** You are responsible for converting any partial, ambiguous, or incomplete resource names (e.g., "my GKE cluster", "the default nodepool", or "project/zone/resource_type/resource_name") into their full URI representation. Utilize available tools like 'gcloud', 'kubectl', or your internal knowledge base to discover the complete and accurate resource URIs.
  * - **GCP Resource URI Reference**: https://cloud.google.com/asset-inventory/docs/asset-names
- * 
+ *
  * Example of a correct GCP Resource URI:
  * - //compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance
  *
@@ -135,7 +136,7 @@ export const registerTools = (server: McpServer): void => {
  *
  * **Crucial:** If you are unable to resolve any of this information into the required formats, you **MUST** seek clarification from the user before proceeding to call this tool.
  *
- * @returns {string} A summary of the new investigation, structured with Markdown. 
+ * @returns {string} A summary of the new investigation, structured with Markdown.
 *           You **MUST** parse this output to find the '**Investigation Path**' and '**Revision Path**'
 *           fields. The final segment of the 'Investigation Path' is the 'investigation_id' and the
 *           final segment of the 'Revision Path' is the 'revision_id'. These are required for subsequent tool calls.
@@ -238,7 +239,7 @@ export const registerTools = (server: McpServer): void => {
         `/**
  * Adds a new user observation to an existing investigation.
  *
- * Prerequisites: 
+ * Prerequisites:
  * Argument Resolution: Before invoking this tool, you **MUST** resolve any new resource names mentioned in the user's observation into the specific formats required by the arguments.
  *
  * Resource URI Mandate: If the user's 'observation' mentions new resources, the 'relevant_resources' parameter requires a list of full Google Cloud Platform (GCP) resource URIs. If no new resources are mentioned, provide an empty list '[]'.
@@ -246,7 +247,7 @@ export const registerTools = (server: McpServer): void => {
  * - **Validation:** The tool will fail if any provided strings are not well-formed URIs in this exact format.
  * - **Resolution:** You are responsible for converting any partial, ambiguous, or incomplete resource names into their full URI representation. Utilize available tools like 'gcloud', 'kubectl', or your internal knowledge base to discover the complete and accurate resource URIs.
  * - **GCP Resource URI Reference**: https://cloud.google.com/asset-inventory/docs/asset-names
- * 
+ *
  * Example of a correct GCP Resource URI:
  * - //compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance
  *
@@ -282,6 +283,47 @@ export const registerTools = (server: McpServer): void => {
                 content: [{
                     type: 'text',
                     text: formattedOutput
+                }]
+            };
+        })
+    );
+
+    server.tool(
+        "retrieve_resource",
+        `/**
+ * Retrieves GCP resources to answer complex queries related to GCP recources.
+ *
+ * This tool retrieves and analyzes complex GCP resource queries when
+ *   - the prompt requires more than 2 shell gcloud commands, or
+ *   - any shell gcloud command fails.
+ *
+ * - This tool should be used if any shell gcloud command fails.
+ * - This tool should be used if more than 1 shell gcloud command will be executing.
+ * - This tool should be used if a single shell gcloud command is not enough.
+ *
+ * This tool generates a full, human-readable response to the input query, so there is
+ * no need to analyze the response, just give a short response after it.
+ *
+ * @param {string} content [REQUIRED] An input query to ask for GCP resource information.
+ * @returns {string} A string of response about the retrieved resources.
+ */`,
+        {
+            content: z.string().describe("The input query for resource retrieval."),
+        },
+        (params: RetrieveResourceParams) => toolWrapper(async () => {
+            const {
+                content
+            } = params;
+            const client = new CloudAiCompanionClient();
+
+            // This is a blocking call that waits for the LRO to complete
+            // and returns the resource.
+            const retrievedResource = await client.retrieveResource({ content });
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: retrievedResource
                 }]
             };
         })
