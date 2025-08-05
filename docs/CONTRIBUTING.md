@@ -18,14 +18,24 @@ was for a different project), you probably don't need to do it again.
 Visit <https://cla.developers.google.com/> to see your current agreements or to
 sign a new one.
 
-### Review our community guidelines
+### Review our Community Guidelines
 
 This project follows
 [Google's Open Source Community Guidelines](https://opensource.google/conduct/).
 
-## Contribution process
+### Running Tests
 
-### Code reviews
+To run the test suite, use the following command:
+
+```bash
+npm test
+```
+
+This will execute the tests using `vitest`.
+
+## Contribution Process
+
+### Code Reviews
 
 All submissions, including submissions by project members, require review. We
 use GitHub pull requests for this purpose. Consult

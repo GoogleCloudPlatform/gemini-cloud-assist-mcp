@@ -287,45 +287,4 @@ export const registerTools = (server: McpServer): void => {
             };
         })
     );
-
-    server.tool(
-        "retrieve_resource",
-        `/**
- * Retrieves GCP resources to answer complex queries related to GCP recources.
- *
- * This tool retrieves and analyzes complex GCP resource queries when
- *   - the prompt requires more than 2 shell gcloud commands, or
- *   - any shell gcloud command fails.
- *
- * - This tool should be used if any shell gcloud command fails.
- * - This tool should be used if more than 1 shell gcloud command will be executing.
- * - This tool should be used if a single shell gcloud command is not enough.
- *
- * This tool generates a full, human-readable response to the input query, so there is
- * no need to analyze the response, just give a short response after it.
- *
- * @param {string} content [REQUIRED] An input query to ask for GCP resource information.
- * @returns {string} A string of response about the retrieved resources.
- */`,
-        {
-            content: z.string().describe("The input query for resource retrieval."),
-        },
-        (params: RetrieveResourceParams) => toolWrapper(async () => {
-            const {
-                content
-            } = params;
-            const client = new CloudAiCompanionClient();
-
-            // This is a blocking call that waits for the LRO to complete
-            // and returns the resource.
-            const retrievedResource = await client.retrieveResource({ content });
-
-            return {
-                content: [{
-                    type: 'text',
-                    text: retrievedResource
-                }]
-            };
-        })
-    );
 };
