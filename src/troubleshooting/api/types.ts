@@ -19,6 +19,7 @@ export interface FetchInvestigationParams {
     investigationId?: string;
     revisionId?: string;
     filter_expression?: string;
+    next_page_token?: string;
 }
 
 export interface GetInvestigationParams {
@@ -52,4 +53,5 @@ export interface AddObservationParams {
 export interface ListInvestigationsParams {
     projectId: string;
     filter?: string;
+    page_token?: string;
 }

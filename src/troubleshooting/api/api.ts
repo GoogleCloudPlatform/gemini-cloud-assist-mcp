@@ -127,7 +127,8 @@ export class GeminiCloudAssistClient extends BaseClient {
             projectId,
             investigationId,
             revisionId,
-            filter_expression
+            filter_expression,
+            next_page_token
         } = params;
         if (revisionId && !investigationId) {
             return Promise.reject(new ApiError("revisionId cannot be provided without investigationId.", 400, 'INVALID_ARGUMENT'));
@@ -142,7 +143,8 @@ export class GeminiCloudAssistClient extends BaseClient {
         } else {
             return this._listInvestigations({
                 projectId,
-                filter: filter_expression
+                filter: filter_expression,
+                page_token: next_page_token
             });
         }
     }
@@ -150,18 +152,23 @@ export class GeminiCloudAssistClient extends BaseClient {
     private async _listInvestigations(params: ListInvestigationsParams): Promise<string> {
         const {
             projectId,
-            filter = ""
+            filter = "",
+            page_token
         } = params;
         const path = new InvestigationPath(projectId);
 
         try {
-            const request = {
+            const request: any = {
                 parent: path.getParent(),
                 auth: this.auth,
                 filter: filter,
                 pageSize: 20,
                 fields: 'investigations(name,title,executionState),nextPageToken',
             };
+
+            if (page_token) {
+                request.pageToken = page_token;
+            }
 
             await this._writeLog('_listInvestigations', 'input', request);
             const res = await this.geminiassist.projects.locations.investigations.list(request);

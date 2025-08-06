@@ -1,12 +1,12 @@
 # Dependencies
-/node_modules
+node_modules/*
 
 # Build output
-/dist
+dist/*
 
 # Local files
-/personal-docs
-/api.integration.local.js
-/install.sh
-/.gemini
-/src/troubleshooting/samples
+personal-docs/*
+api.integration.local.js
+install.sh
+.gemini/*
+src/troubleshooting/samples/*

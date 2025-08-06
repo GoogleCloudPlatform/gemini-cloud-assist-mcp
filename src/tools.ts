@@ -78,7 +78,7 @@ export const registerTools = (server: McpServer): void => {
  *
  * 1.  **List Mode:** If only a projectId is provided, it will list all
  *     troubleshooting investigations associated with that project. It can be
- *     optionally filtered by title using the filter_expression parameter.
+ *     optionally filtered by title using the filter_expression parameter. If the user indicates to fetch more pages, use the next_page_token parameter.
  *
  * 2.  **Get Mode:** If an investigationId is also provided, it will fetch the
  *     detailed report for that specific investigation. If a revisionId is
@@ -91,9 +91,10 @@ export const registerTools = (server: McpServer): void => {
             investigationId: z.string().optional().describe("The ID of a specific investigation to fetch. If omitted, the function will list all investigations for the project."),
             revisionId: z.string().optional().describe("The revision ID of a specific investigation to fetch. Requires `investigationId` to be set."),
             filter_expression: z.string().optional().describe('A string to filter investigations by title. The filter format is `title:"<your_title>"`.'),
+            next_page_token: z.string().optional().describe("A page token to retrieve a specific page of results."),
         },
         (params: FetchInvestigationParams) => toolWrapper(async () => {
-            const { projectId, investigationId, revisionId, filter_expression } = params;
+            const { projectId, investigationId, revisionId, filter_expression, next_page_token } = params;
             if (revisionId && !investigationId) {
                 throw new ApiError(
                     "The 'revisionId' parameter cannot be used without 'investigationId'.",
@@ -101,9 +102,16 @@ export const registerTools = (server: McpServer): void => {
                     'INVALID_ARGUMENT'
                 );
             }
+            if (next_page_token && investigationId) {
+                throw new ApiError(
+                    "The 'next_page_token' parameter cannot be used with 'investigationId'.",
+                    400,
+                    'INVALID_ARGUMENT'
+                );
+            }
 
             const client = new GeminiCloudAssistClient();
-            const result = await client.fetchInvestigation({ projectId, investigationId, revisionId, filter_expression });
+            const result = await client.fetchInvestigation({ projectId, investigationId, revisionId, filter_expression, next_page_token });
             return {
                 content: [{
                     type: 'text',
