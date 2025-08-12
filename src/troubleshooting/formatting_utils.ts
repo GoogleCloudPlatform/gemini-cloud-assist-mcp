@@ -266,7 +266,7 @@ export class InvestigationViewer {
         if (!link) {
             return '';
         }
-        return `------------------\n\nYou can view this investigation in the Google Cloud Console\n${link}\n\n------------------`;
+        return `------------------\n\nYou can view this investigation in the Google Cloud Console\n<${link}>\n\n------------------`;
     }
 
     render(options: { showObservationsAndHypotheses?: boolean } = {}): string {
