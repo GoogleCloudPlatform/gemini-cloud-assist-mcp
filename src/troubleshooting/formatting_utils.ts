@@ -266,7 +266,7 @@ export class InvestigationViewer {
         if (!link) {
             return '';
         }
-        return `------------------\nYou can view this investigation in the Google Cloud Console\n${link}\n------------------`;
+        return `------------------\n\nYou can view this investigation in the Google Cloud Console\n${link}\n\n------------------`;
     }
 
     render(options: { showObservationsAndHypotheses?: boolean } = {}): string {
@@ -281,7 +281,7 @@ export class InvestigationViewer {
             sections.push(this.formatObservationsSection());
             sections.push(this.formatHypothesesSection());
         }
-        
+
         const mainContent = sections.filter(Boolean).join('\n\n');
         const investigationLink = this.formatInvestigationLink();
 
