@@ -44,14 +44,16 @@ import {
     RunInvestigationParams
 } from './types.js';
 import {
-    BaseClient
+    BaseClient,
+    productName,
+    productVersion
 } from '../../shared/base_client.js';
 import {
     BaseClientOptions
 } from '../../shared/types.js';
 
 export class GeminiCloudAssistClient extends BaseClient {
-    private geminiassist: any;
+    private geminicloudassist: any;
     private isInitialized: boolean;
     private licenseValidated: boolean;
 
@@ -59,11 +61,14 @@ export class GeminiCloudAssistClient extends BaseClient {
         super(options);
         this.isInitialized = false;
         this.licenseValidated = false;
-        this.geminiassist = null;
-    }
+        this.geminicloudassist = null;
 
-    protected _initAuth() {
-        return super._initAuth();
+        google.options({
+            userAgentDirectives: [{
+                product: productName,
+                version: productVersion
+            }]
+        });
     }
 
     private async _ensureReady({
@@ -112,7 +117,7 @@ export class GeminiCloudAssistClient extends BaseClient {
 
     private async _discoverApi(): Promise<void> {
         try {
-            this.geminiassist = await google.discoverAPI(DISCOVERY_API_URL);
+            this.geminicloudassist = await google.discoverAPI(DISCOVERY_API_URL);
         } catch (error: any) {
             this.logger.error('Error discovering Gemini Cloud Assist API:', error.message);
             throw new ApiError(`Failed to discover API. ${error.message}`, 500, 'API_DISCOVERY_FAILED');
@@ -171,7 +176,7 @@ export class GeminiCloudAssistClient extends BaseClient {
             }
 
             await this._writeLog('_listInvestigations', 'input', request);
-            const res = await this.geminiassist.projects.locations.investigations.list(request);
+            const res = await this.geminicloudassist.projects.locations.investigations.list(request);
             await this._writeLog('_listInvestigations', 'output', res.data);
 
             const investigations = res.data.investigations;
@@ -228,7 +233,7 @@ export class GeminiCloudAssistClient extends BaseClient {
             };
 
             await this._writeLog('createInvestigation', 'input', request);
-            const res = await this.geminiassist.projects.locations.investigations.create(request);
+            const res = await this.geminicloudassist.projects.locations.investigations.create(request);
             await this._writeLog('createInvestigation', 'output', res.data);
             return res.data;
         } catch (error: any) {
@@ -255,7 +260,7 @@ export class GeminiCloudAssistClient extends BaseClient {
             };
 
             await this._writeLog('runInvestigation_run', 'input', request);
-            const runResponse = await this.geminiassist.projects.locations.investigations.revisions.run(request);
+            const runResponse = await this.geminicloudassist.projects.locations.investigations.revisions.run(request);
             await this._writeLog('runInvestigation_run', 'output', runResponse.data);
 
             const operationName = runResponse.data.name;
@@ -278,7 +283,7 @@ export class GeminiCloudAssistClient extends BaseClient {
                 };
 
                 await this._writeLog(`runInvestigation_poll_op_attempt_${attempt}`, 'input', opRequest);
-                const opRes = await this.geminiassist.projects.locations.operations.get(opRequest);
+                const opRes = await this.geminicloudassist.projects.locations.operations.get(opRequest);
                 await this._writeLog(`runInvestigation_poll_op_attempt_${attempt}`, 'output', opRes.data);
 
                 if (opRes.data.done) {
@@ -327,7 +332,7 @@ export class GeminiCloudAssistClient extends BaseClient {
                 auth: this.auth,
             };
             await this._writeLog(`_getInvestigationRaw${logSuffix}`, 'input', request);
-            const res = await this.geminiassist.projects.locations.investigations.get(request);
+            const res = await this.geminicloudassist.projects.locations.investigations.get(request);
             await this._writeLog(`_getInvestigationRaw${logSuffix}`, 'output', res.data);
             return res.data;
         } catch (error: any) {
@@ -377,7 +382,7 @@ export class GeminiCloudAssistClient extends BaseClient {
             };
 
             await this._writeLog('addObservation', 'input', request);
-            const res = await this.geminiassist.projects.locations.investigations.revisions.create(request);
+            const res = await this.geminicloudassist.projects.locations.investigations.revisions.create(request);
             await this._writeLog('addObservation', 'output', res.data);
 
             return res.data;

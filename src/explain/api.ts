@@ -47,7 +47,7 @@ export class CloudAiCompanionClient extends BaseClient {
             const client = await this.auth.getClient();
             const projectId = await this.auth.getProjectId();
 
-            const request = {
+            const apiRequest = {
                 input: {
                     messages: [{
                         content: request,
@@ -67,13 +67,13 @@ export class CloudAiCompanionClient extends BaseClient {
                 }
             };
 
-            await this._writeLog('retrieveResource', 'input', request);
+            await this._writeLog('retrieveResource', 'input', apiRequest);
             const url = `https://cloudaicompanion.googleapis.com/v1/projects/${projectId}/locations/global/instances/default:completeTask`;
             const res = await client.request({
                 url,
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(request),
+                body: JSON.stringify(apiRequest),
             })
             await this._writeLog('retrieveResource', 'output', res.data);
 

@@ -30,7 +30,9 @@ import {
     GoogleAuth
 } from 'google-auth-library';
 
-export const userAgent = `gemini-cloud-assist-mcp/${packageJson.version}`;
+export const productName = 'gemini-cloud-assist-mcp';
+export const productVersion = packageJson.version;
+export const userAgent = `${productName}/${productVersion}`;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
