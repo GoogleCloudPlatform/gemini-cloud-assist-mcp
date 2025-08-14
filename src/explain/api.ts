@@ -22,7 +22,7 @@ import {
 } from '../shared/base_client.js';
 
 export interface RetrieveResourceParams {
-    content: string;
+    request: string;
 }
 
 interface TaskCompletionMessage {
@@ -41,7 +41,7 @@ interface TaskCompletionResponse {
 export class CloudAiCompanionClient extends BaseClient {
     async retrieveResource(params: RetrieveResourceParams): Promise<any> {
         const {
-            content
+            request
         } = params;
         try {
             const client = await this.auth.getClient();
@@ -50,7 +50,7 @@ export class CloudAiCompanionClient extends BaseClient {
             const request = {
                 input: {
                     messages: [{
-                        content: content,
+                        content: request,
                         author: "user"
                     }]
                 },
