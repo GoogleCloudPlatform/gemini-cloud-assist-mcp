@@ -197,10 +197,13 @@ export const registerTools = (server: McpServer): void => {
  * The tool will not return a response until the investigation is complete.
  *
  * **Workflow:** This tool **MUST** be called immediately after
- * 'create_investigation'
- * or 'add_observation'. The string returned by this function is the final,
+ * 'create_investigation' or 'add_observation'. The string returned by this function is the final,
  * detailed report. There is no need to call any other tool after this to get the
  * results.
+ *
+ * **Interpreting the Output:** The output of this tool represents a set of observations & hypotheses based on the data,
+ * not a definitive conclusion. NEVER treat the output as a confirmed root cause without further validation.
+ * Your job is to analyze the returned hypotheses and use other tools at your disposal to gather evidence that proves or disproves them.
  *
  * @returns {string} A detailed troubleshooting report in a structured string format. The
  *           report is organized with '##' headers for sections like 'Issue',
