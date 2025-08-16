@@ -307,10 +307,12 @@ export const registerTools = (server: McpServer): void => {
  * This tool delegates the request to a specialized backend agent capable of
  * complex reasoning, multi-step analysis, and searching across a large number
  * of GCP services, including but not limited to: Compute, CloudSQL, Containers.
- * Note that this tool cannot access the Cloud Monitoring service, and therefore
- * cannot determine resource metrics or usage.
  *
- * DO NOT use this tool for BigQuery related request.
+ * Limitations:
+ * - DO NOT use this tool for resource metrics or usage related request. This
+ *     tool cannot access the Cloud Monitoring service.
+ * - DO NOT use this tool for BigQuery related request. This tool cannot access
+ *     Bigquery API.
  *
  * This tool provides a comprehensive, human-readable answer synthesized by the
  * backend agent, not raw resource data.
