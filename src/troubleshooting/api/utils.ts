@@ -1,18 +1,8 @@
-/*
-Copyright 2025 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 /**
  * @fileoverview Utilities for creating and modifying investigation payloads for
@@ -20,10 +10,10 @@ limitations under the License.
  */
 
 import {
-    PRIMARY_USER_OBSERVATION_ID,
-    PROJECT_OBSERVATION_ID,
+  PRIMARY_USER_OBSERVATION_ID,
+  PROJECT_OBSERVATION_ID,
 } from './constants.js';
-
+import { Investigation, CreateInvestigationRequest } from './types.js';
 
 /**
  * A utility class to manage the various formats of investigation resource names.
@@ -32,125 +22,108 @@ import {
  * `projects/{project}/locations/{location}/investigations/{investigation_id}/revisions/{revision_id}`
  */
 export class InvestigationPath {
-    projectId: string;
-    investigationId?: string;
-    revisionId?: string;
-    location: string;
+  projectId: string;
+  investigationId?: string;
+  revisionId?: string;
+  location: string;
 
-    /**
-     * @param {string} projectId The Google Cloud Project ID.
-     * @param {string} [investigationId] The ID of a specific investigation.
-     * @param {string} [revisionId] The revision ID of a specific investigation.
-     */
-    constructor(projectId: string, investigationId?: string, revisionId?: string) {
-        if (!projectId) {
-            throw new Error("A projectId is required.");
-        }
-        this.projectId = projectId;
-        this.investigationId = investigationId;
-        this.revisionId = revisionId;
-        this.location = 'global'; // Assuming 'global' for now as it's hardcoded elsewhere.
+  /**
+   * @param {string} projectId The Google Cloud Project ID.
+   * @param {string} [investigationId] The ID of a specific investigation.
+   * @param {string} [revisionId] The revision ID of a specific investigation.
+   */
+  constructor(
+    projectId: string,
+    investigationId?: string,
+    revisionId?: string
+  ) {
+    if (!projectId) {
+      throw new Error('A projectId is required.');
+    }
+    this.projectId = projectId;
+    this.investigationId = investigationId;
+    this.revisionId = revisionId;
+    this.location = 'global'; // Assuming 'global' for now as it's hardcoded elsewhere.
+  }
+
+  /**
+   * Creates an InvestigationPath instance from a full resource name string.
+   * @param {string} resourceName The full GCP resource name.
+   * @returns {InvestigationPath | null} A new instance of InvestigationPath or null if parsing fails.
+   */
+  static fromInvestigationName(resourceName: string): InvestigationPath | null {
+    if (!resourceName) return null;
+
+    const parts = resourceName.split('/');
+    if (parts.length < 2 || parts[0] !== 'projects') {
+      return null;
     }
 
-    /**
-     * Creates an InvestigationPath instance from a full resource name string.
-     * @param {string} resourceName The full GCP resource name.
-     * @returns {InvestigationPath | null} A new instance of InvestigationPath or null if parsing fails.
-     */
-    static fromInvestigationName(resourceName: string): InvestigationPath | null {
-        if (!resourceName) return null;
+    const projectId = parts[1];
+    let investigationId: string | undefined = undefined;
+    let revisionId: string | undefined = undefined;
 
-        const parts = resourceName.split('/');
-        if (parts.length < 2 || parts[0] !== 'projects') {
-            return null;
-        }
-
-        const projectId = parts[1];
-        let investigationId: string | undefined = undefined;
-        let revisionId: string | undefined = undefined;
-
-        const investigationIndex = parts.indexOf('investigations');
-        if (investigationIndex !== -1 && parts.length > investigationIndex + 1) {
-            investigationId = parts[investigationIndex + 1];
-        }
-
-        const revisionIndex = parts.indexOf('revisions');
-        if (revisionIndex !== -1 && parts.length > revisionIndex + 1) {
-            revisionId = parts[revisionIndex + 1];
-        }
-
-        return new InvestigationPath(projectId, investigationId, revisionId);
+    const investigationIndex = parts.indexOf('investigations');
+    if (investigationIndex !== -1 && parts.length > investigationIndex + 1) {
+      investigationId = parts[investigationIndex + 1];
     }
 
-    /**
-     * Returns the parent path for listing resources.
-     * Format: `projects/{projectId}/locations/{location}`
-     * @returns {string}
-     */
-    getParent(): string {
-        return `projects/${this.projectId}/locations/${this.location}`;
+    const revisionIndex = parts.indexOf('revisions');
+    if (revisionIndex !== -1 && parts.length > revisionIndex + 1) {
+      revisionId = parts[revisionIndex + 1];
     }
 
-    /**
-     * Returns the full investigation name.
-     * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}`
-     * @returns {string}
-     */
-    getInvestigationName(): string {
-        if (!this.investigationId) {
-            throw new Error("Investigation ID is not set.");
-        }
-        return `${this.getParent()}/investigations/${this.investigationId}`;
+    return new InvestigationPath(projectId, investigationId, revisionId);
+  }
+
+  /**
+   * Returns the parent path for listing resources.
+   * Format: `projects/{projectId}/locations/{location}`
+   * @returns {string}
+   */
+  getParent(): string {
+    return `projects/${this.projectId}/locations/${this.location}`;
+  }
+
+  /**
+   * Returns the full investigation name.
+   * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}`
+   * @returns {string}
+   */
+  getInvestigationName(): string {
+    if (!this.investigationId) {
+      throw new Error('Investigation ID is not set.');
     }
+    return `${this.getParent()}/investigations/${this.investigationId}`;
+  }
 
-    /**
-     * Returns the full revision name.
-     * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}/revisions/{revisionId}`
-     * @returns {string}
-     */
-    getRevisionName(): string {
-        if (!this.investigationId || !this.revisionId) {
-            throw new Error("Investigation ID and/or Revision ID are not set.");
-        }
-        return `${this.getInvestigationName()}/revisions/${this.revisionId}`;
+  /**
+   * Returns the full revision name.
+   * Format: `projects/{projectId}/locations/{location}/investigations/{investigationId}/revisions/{revisionId}`
+   * @returns {string}
+   */
+  getRevisionName(): string {
+    if (!this.investigationId || !this.revisionId) {
+      throw new Error('Investigation ID and/or Revision ID are not set.');
     }
+    return `${this.getInvestigationName()}/revisions/${this.revisionId}`;
+  }
 
-    /**
-     * Returns the project ID.
-     * @returns {string}
-     */
-    getProjectId(): string {
-        return this.projectId;
-    }
+  /**
+   * Returns the project ID.
+   * @returns {string}
+   */
+  getProjectId(): string {
+    return this.projectId;
+  }
 
-    /**
-     * Returns the investigation ID.
-     * @returns {string | undefined}
-     */
-    getInvestigationId(): string | undefined {
-        return this.investigationId;
-    }
-}
-
-interface TimeRange {
-    startTime: string;
-}
-
-interface Observation {
-    id: string;
-    observerType: string;
-    observationType: string;
-    text: string;
-    relevantResources?: string[];
-    timeRanges?: TimeRange[];
-}
-
-export interface InvestigationPayload {
-    title: string;
-    dataVersion: string;
-    observations: {
-        [key: string]: Observation;
-    };
+  /**
+   * Returns the investigation ID.
+   * @returns {string | undefined}
+   */
+  getInvestigationId(): string | undefined {
+    return this.investigationId;
+  }
 }
 
 /**
@@ -163,37 +136,38 @@ export interface InvestigationPayload {
  * @param {string} start_time The start time of the issue in RFC3339 UTC "Zulu" format.
  * @returns {object} The investigation object payload for the API.
  */
-export function createInitialInvestigation(
-    title: string,
-    projectId: string,
-    issue_description: string,
-    relevant_resources: string[],
-    start_time: string
-): InvestigationPayload {
-    return {
-        title: title,
-        dataVersion: "2",
-        observations: {
-            [PROJECT_OBSERVATION_ID]: {
-                id: PROJECT_OBSERVATION_ID,
-                observerType: 'OBSERVER_TYPE_USER',
-                observationType: 'OBSERVATION_TYPE_STRUCTURED_INPUT',
-                text: projectId,
-            },
-            [PRIMARY_USER_OBSERVATION_ID]: {
-                id: PRIMARY_USER_OBSERVATION_ID,
-                observerType: 'OBSERVER_TYPE_USER',
-                observationType: 'OBSERVATION_TYPE_TEXT_DESCRIPTION',
-                text: issue_description,
-                relevantResources: relevant_resources,
-                timeRanges: [{
-                    startTime: start_time
-                }],
-            }
-        },
-    };
+export function createInitialInvestigationRequestBody(
+  title: string,
+  projectId: string,
+  issue_description: string,
+  relevant_resources: string[],
+  start_time: string
+): CreateInvestigationRequest {
+  return {
+    title: title,
+    dataVersion: '2',
+    observations: {
+      [PROJECT_OBSERVATION_ID]: {
+        id: PROJECT_OBSERVATION_ID,
+        observerType: 'OBSERVER_TYPE_USER',
+        observationType: 'OBSERVATION_TYPE_STRUCTURED_INPUT',
+        text: projectId,
+      },
+      [PRIMARY_USER_OBSERVATION_ID]: {
+        id: PRIMARY_USER_OBSERVATION_ID,
+        observerType: 'OBSERVER_TYPE_USER',
+        observationType: 'OBSERVATION_TYPE_TEXT_DESCRIPTION',
+        text: issue_description,
+        relevantResources: relevant_resources,
+        timeIntervals: [
+          {
+            startTime: start_time,
+          },
+        ],
+      },
+    },
+  };
 }
-
 
 /**
  * Validates a list of strings to ensure they are syntactically correct GCP resource URIs.
@@ -202,15 +176,16 @@ export function createInitialInvestigation(
  * @returns {string[]} - A list of the invalid resource strings. If all are valid, the list is empty.
  */
 export function validateGcpResources(resources: string[]): string[] {
-    const invalidResources: string[] = [];
-    const gcpResourceRegex = /^\/\/(?!www\.)[a-zA-Z0-9-.]+\.googleapis\.com\/((projects|folders|organizations)\/[a-zA-Z0-9-_.]+(\/(.+))?|\S+)$/;
+  const invalidResources: string[] = [];
+  const gcpResourceRegex =
+    /^\/\/(?!www\.)[a-zA-Z0-9-.]+\.googleapis\.com\/((projects|folders|organizations)\/[a-zA-Z0-9-_.]+(\/(.+))?|\S+)$/;
 
-    for (const resource of resources) {
-        if (typeof resource !== 'string' || !gcpResourceRegex.test(resource)) {
-            invalidResources.push(resource);
-        }
+  for (const resource of resources) {
+    if (typeof resource !== 'string' || !gcpResourceRegex.test(resource)) {
+      invalidResources.push(resource);
     }
-    return invalidResources;
+  }
+  return invalidResources;
 }
 
 /**
@@ -241,54 +216,52 @@ export function validateGcpResources(resources: string[]): string[] {
  *   or null if the input payload is invalid.
  */
 export function getRevisionWithNewObservation(
-    payload: InvestigationPayload | null,
-    observationText: string,
-    relevantResources: string[]
-): { snapshot: InvestigationPayload } | null {
-    if (!payload) {
-        return null;
+  payload: Investigation | null,
+  observationText: string,
+  relevantResources: string[]
+): { snapshot: Investigation } | null {
+  if (!payload) {
+    return null;
+  }
+
+  const newPayload: Investigation = JSON.parse(JSON.stringify(payload));
+
+  if (!newPayload.observations) {
+    newPayload.observations = {};
+  }
+  const { observations } = newPayload;
+
+  // Prune all non-user observations.
+  for (const key in observations) {
+    if (observations[key].observerType !== 'OBSERVER_TYPE_USER') {
+      delete observations[key];
     }
+  }
 
-    const newPayload: InvestigationPayload = JSON.parse(JSON.stringify(payload));
+  if (!observations[PRIMARY_USER_OBSERVATION_ID]) {
+    observations[PRIMARY_USER_OBSERVATION_ID] = {
+      id: PRIMARY_USER_OBSERVATION_ID,
+      observerType: 'OBSERVER_TYPE_USER',
+      observationType: 'OBSERVATION_TYPE_TEXT_DESCRIPTION',
+      text: '', // Start with empty text
+      relevantResources: [],
+    };
+  }
 
-    if (!newPayload.observations) {
-        newPayload.observations = {};
+  const primaryObs = observations[PRIMARY_USER_OBSERVATION_ID];
+  if (primaryObs.text) {
+    primaryObs.text += '\n\n';
+  }
+  primaryObs.text += `[User Observation]: ${observationText}`;
+
+  const existingResources = primaryObs.relevantResources || [];
+  for (const resource of relevantResources) {
+    if (!existingResources.includes(resource)) {
+      existingResources.push(resource);
     }
-    const { observations } = newPayload;
+  }
+  primaryObs.relevantResources = existingResources;
 
-    // Prune all non-user observations.
-    for (const key in observations) {
-        if (observations[key].observerType !== 'OBSERVER_TYPE_USER') {
-            delete observations[key];
-        }
-    }
-
-    if (!observations[PRIMARY_USER_OBSERVATION_ID]) {
-        observations[PRIMARY_USER_OBSERVATION_ID] = {
-            id: PRIMARY_USER_OBSERVATION_ID,
-            observerType: 'OBSERVER_TYPE_USER',
-            observationType: 'OBSERVATION_TYPE_TEXT_DESCRIPTION',
-            text: '', // Start with empty text
-            relevantResources: [],
-        };
-    }
-
-    const primaryObs = observations[PRIMARY_USER_OBSERVATION_ID];
-    if (primaryObs.text) {
-        primaryObs.text += '\n\n';
-    }
-    primaryObs.text += `[User Observation]: ${observationText}`;
-
-
-    const existingResources = primaryObs.relevantResources || [];
-    for (const resource of relevantResources) {
-        if (!existingResources.includes(resource)) {
-            existingResources.push(resource);
-        }
-    }
-    primaryObs.relevantResources = existingResources;
-
-
-    // The API expects the modified payload to be wrapped in a "snapshot" field.
-    return { snapshot: newPayload };
+  // The API expects the modified payload to be wrapped in a "snapshot" field.
+  return { snapshot: newPayload };
 }
