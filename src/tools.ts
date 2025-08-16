@@ -310,6 +310,8 @@ export const registerTools = (server: McpServer): void => {
  * Note that this tool cannot access the Cloud Monitoring service, and therefore
  * cannot determine resource metrics or usage.
  *
+ * DO NOT use this tool for BigQuery related request.
+ *
  * This tool provides a comprehensive, human-readable answer synthesized by the
  * backend agent, not raw resource data.
  *
