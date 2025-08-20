@@ -10,12 +10,12 @@ This initial release features a powerful suite of **Investigation Tools**. These
 
 ### **Key Features**
 
-  * **🤖 Natural Language Commands:** Describe a problem or task in plain English and let Gemini Cloud Assist take care of the rest.
-  * **🔍 Automated Root Cause Analysis:** Automatically analyze GCP configurations, logs, and metrics to find the source of complex issues.
-  * **💻 Seamless CLI Integration:** Integrates directly into your command-line workflow via clients like the Gemini CLI.
-  * **💡 Iterative Troubleshooting:** Add new observations to existing investigations to refine the analysis as you learn more.
+- **🤖 Natural Language Commands:** Describe a problem or task in plain English and let Gemini Cloud Assist take care of the rest.
+- **🔍 Automated Root Cause Analysis:** Automatically analyze GCP configurations, logs, and metrics to find the source of complex issues.
+- **💻 Seamless CLI Integration:** Integrates directly into your command-line workflow via clients like the Gemini CLI.
+- **💡 Iterative Troubleshooting:** Add new observations to existing investigations to refine the analysis as you learn more.
 
------
+---
 
 ### **How It Works**
 
@@ -27,7 +27,7 @@ This server acts as a local bridge between your MCP client and Google Cloud. The
 
 > To learn more about the product, see the official **[Gemini in Cloud Assist Investigations Documentation](https://cloud.google.com/gemini/docs/cloud-assist/investigations)**.
 
------
+---
 
 ## **🚀 Getting Started**
 
@@ -37,13 +37,13 @@ Follow these steps to get the server running and connected to your client.
 
 Before you begin, ensure you have the following:
 
-  * [**Node.js**](https://nodejs.org/en/download) (v20 or later).
-  * [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install) installed and initialized.
-  * A **Google Cloud Project**.
-  * An **MCP Client**, such as the [**Gemini CLI**](https://github.com/google-gemini/gemini-cli).
-  * Your user account must have the following **IAM roles** in your project:
-      * `roles/serviceusage.serviceUsageAdmin` (Service Usage Admin)
-      * `roles/geminicloudassist.user` (Gemini Cloud Assist User)
+- [**Node.js**](https://nodejs.org/en/download) (v20 or later).
+- [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install) installed and initialized.
+- A **Google Cloud Project**.
+- An **MCP Client**, such as the [**Gemini CLI**](https://github.com/google-gemini/gemini-cli).
+- Your user account must have the following **IAM roles** in your project:
+  - `roles/serviceusage.serviceUsageAdmin` (Service Usage Admin)
+  - `roles/geminicloudassist.user` (Gemini Cloud Assist User)
 
 ### **2. Authenticate with Google Cloud**
 
@@ -73,7 +73,7 @@ Add the Gemini Cloud Assist MCP Server to your client's configuration. For the G
 
 That's it\! The next time you run your MCP client in interactive mode (e.g., by running `gemini`), it will automatically start this server.
 
------
+---
 
 ## **Tools Reference**
 
@@ -81,14 +81,14 @@ The server exposes the following tools, with more planned for future releases.
 
 ### **Current Tools**
 
-  * **`create_investigation`**: Starts a new troubleshooting session for a specific issue.
-  * **`run_investigation`**: Triggers a root cause analysis on an investigation and returns the final report.
-  * **`add_observation`**: Adds new context to an investigation, creating a new revision for analysis.
-  * **`fetch_investigation`**: Retrieves the history, findings, and revisions for a specific investigation.
+- **`create_investigation`**: Starts a new troubleshooting session for a specific issue.
+- **`run_investigation`**: Triggers a root cause analysis on an investigation and returns the final report.
+- **`add_observation`**: Adds new context to an investigation, creating a new revision for analysis.
+- **`fetch_investigation`**: Retrieves the history, findings, and revisions for a specific investigation.
 
 > **Coming Soon**: Future releases will expand the toolset to include resource finding, cost optimization and more.
 
------
+---
 
 ## **API Access and Quotas**
 
@@ -100,13 +100,13 @@ This server uses the Gemini in Cloud Assist API. While a [Gemini Code Assist sub
 | Code Assist Standard   | 120 (both models)            | 1500 (both models)        |
 | Code Assist Enterprise | 120 (both models)            | 2000 (both models)        |
 
------
+---
 
 ## **Community & Contributing**
 
-  * **🐛 Report Issues:** If you encounter a bug, please file an issue on our [GitHub Issues](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/issues) page.
-  * **💬 Ask Questions:** For questions and discussions, please use [GitHub Discussions](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/discussions).
-  * **🤝 Contribute:** Before sending a pull request, please review our [Contributing Guide](./docs/CONTRIBUTING.md).
+- **🐛 Report Issues:** If you encounter a bug, please file an issue on our [GitHub Issues](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/issues) page.
+- **💬 Ask Questions:** For questions and discussions, please use [GitHub Discussions](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/discussions).
+- **🤝 Contribute:** Before sending a pull request, please review our [Contributing Guide](./docs/CONTRIBUTING.md).
 
 ### **License**
 

@@ -4,6 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from './api.js';
-export * from './constants.js';
-export * from './utils.js';
+export interface RetrieveResourceToolInput {
+  request: string;
+}

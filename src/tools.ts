@@ -1,76 +1,67 @@
-/*
-Copyright 2025 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 import { z } from 'zod';
 import { GeminiCloudAssistClient } from './troubleshooting/api/api.js';
 import { ApiError } from './shared/errors.js';
 import { InvestigationViewer } from './troubleshooting/formatting_utils.js';
-import {
-    createInitialInvestigation,
-    validateGcpResources
-} from './troubleshooting/api/utils.js';
+import { validateGcpResources } from './troubleshooting/api/utils.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { CloudAiCompanionClient, RetrieveResourceParams } from './explain/api.js'
-
-
+import { CloudAiCompanionClient } from './explain/api.js';
 
 import {
-    AddObservationParams,
-    CreateInvestigationParams,
-    FetchInvestigationParams,
-    RunInvestigationParams
+  AddObservationToolInput,
+  CreateInvestigationToolInput,
+  FetchInvestigationToolInput,
+  RunInvestigationToolInput,
+  Investigation,
 } from './troubleshooting/api/types.js';
+import { RetrieveResourceToolInput } from './explain/types.js';
 
 const _validateGcpResourcesAndThrow = (resources: string[]) => {
-    const invalid_resources = validateGcpResources(resources);
-    if (invalid_resources.length > 0) {
-        let error_message = `Error: Invalid resource format for the following resources:\n`;
-        for (const resource of invalid_resources) {
-            error_message += `- "${resource}"\n`;
-        }
-        error_message += "Resources must be a fully-qualified GCP Resource URI, for example: '//compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance'";
-        throw new ApiError(error_message, 400, 'INVALID_ARGUMENT');
+  const invalid_resources = validateGcpResources(resources);
+  if (invalid_resources.length > 0) {
+    let error_message = `Error: Invalid resource format for the following resources:\n`;
+    for (const resource of invalid_resources) {
+      error_message += `- "${resource}"\n`;
     }
+    error_message +=
+      "Resources must be a fully-qualified GCP Resource URI, for example: '//compute.googleapis.com/projects/my-gcp-project/zones/us-central1-a/instances/my-vm-instance'";
+    throw new ApiError(error_message, 400, 'INVALID_ARGUMENT');
+  }
 };
 
-async function toolWrapper<T>(
-    cb: () => Promise<CallToolResult>
+async function toolWrapper(
+  cb: () => Promise<CallToolResult>
 ): Promise<CallToolResult> {
-    try {
-        return await cb();
-    } catch (error: any) {
-        if (error instanceof ApiError) {
-            return error.toToolResult();
-        }
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: error instanceof Error ? error.message : String(error),
-                },
-            ],
-        };
+  try {
+    return await cb();
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      return error.toToolResult();
     }
+    return {
+      content: [
+        {
+          type: 'text',
+          text: error instanceof Error ? error.message : String(error),
+        },
+      ],
+    };
+  }
 }
 
 export const registerTools = (server: McpServer): void => {
-    server.tool(
-        "fetch_investigation",
-        `/**
+  const geminiCloudAssistClient = new GeminiCloudAssistClient();
+  const cloudAiCompanionClient = new CloudAiCompanionClient();
+
+  server.tool(
+    'fetch_investigation',
+    `/**
  * Fetches Gemini Cloud Assist Investigations.
  *
  * This function serves as a versatile entry point for retrieving investigation data.
@@ -86,44 +77,78 @@ export const registerTools = (server: McpServer): void => {
  *     retrieves the latest version.
  *
  */`,
-        {
-            projectId: z.string().describe("The Google Cloud Project ID."),
-            investigationId: z.string().optional().describe("The ID of a specific investigation to fetch. If omitted, the function will list all investigations for the project."),
-            revisionId: z.string().optional().describe("The revision ID of a specific investigation to fetch. Requires `investigationId` to be set."),
-            filter_expression: z.string().optional().describe('A string to filter investigations by title. The filter format is `title:"<your_title>"`.'),
-            next_page_token: z.string().optional().describe("A page token to retrieve a specific page of results."),
-        },
-        (params: FetchInvestigationParams) => toolWrapper(async () => {
-            const { projectId, investigationId, revisionId, filter_expression, next_page_token } = params;
-            if (revisionId && !investigationId) {
-                throw new ApiError(
-                    "The 'revisionId' parameter cannot be used without 'investigationId'.",
-                    400,
-                    'INVALID_ARGUMENT'
-                );
-            }
-            if (next_page_token && investigationId) {
-                throw new ApiError(
-                    "The 'next_page_token' parameter cannot be used with 'investigationId'.",
-                    400,
-                    'INVALID_ARGUMENT'
-                );
-            }
+    {
+      projectId: z.string().describe('The Google Cloud Project ID.'),
+      investigationId: z
+        .string()
+        .optional()
+        .describe(
+          'The ID of a specific investigation to fetch. If omitted, the function will list all investigations for the project.'
+        ),
+      revisionId: z
+        .string()
+        .optional()
+        .describe(
+          'The revision ID of a specific investigation to fetch. Requires `investigationId` to be set.'
+        ),
+      filter_expression: z
+        .string()
+        .optional()
+        .describe(
+          'A string to filter investigations by title. The filter format is `title:"<your_title>"`.'
+        ),
+      next_page_token: z
+        .string()
+        .optional()
+        .describe('A page token to retrieve a specific page of results.'),
+    },
+    (params: FetchInvestigationToolInput) =>
+      toolWrapper(async () => {
+        const {
+          projectId,
+          investigationId,
+          revisionId,
+          filter_expression,
+          next_page_token,
+        } = params;
+        if (revisionId && !investigationId) {
+          throw new ApiError(
+            "The 'revisionId' parameter cannot be used without 'investigationId'.",
+            400,
+            'INVALID_ARGUMENT'
+          );
+        }
+        if (next_page_token && investigationId) {
+          throw new ApiError(
+            "The 'next_page_token' parameter cannot be used with 'investigationId'.",
+            400,
+            'INVALID_ARGUMENT'
+          );
+        }
 
-            const client = new GeminiCloudAssistClient();
-            const result = await client.fetchInvestigation({ projectId, investigationId, revisionId, filter_expression, next_page_token });
-            return {
-                content: [{
-                    type: 'text',
-                    text: result
-                }]
-            };
-        })
-    );
+        const result: string = await geminiCloudAssistClient.fetchInvestigation(
+          {
+            projectId,
+            investigationId,
+            revisionId,
+            filter_expression,
+            next_page_token,
+          }
+        );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: result,
+            },
+          ],
+        };
+      })
+  );
 
-    server.tool(
-        'create_investigation',
-        `/**
+  server.tool(
+    'create_investigation',
+    `/**
  * Creates a new Gemini Cloud Assist Investigation. This tool is the primary entry point for initiating any new troubleshooting analysis.
  *
  * Prerequisites:
@@ -149,48 +174,54 @@ export const registerTools = (server: McpServer): void => {
 *           fields. The final segment of the 'Investigation Path' is the 'investigation_id' and the
 *           final segment of the 'Revision Path' is the 'revision_id'. These are required for subsequent tool calls.
  */`,
-        {
-            projectId: z.string().describe("The Google Cloud Project ID."),
-            title: z.string().describe("A human-readable title. You MUST prefix the title with \"[Gemini CLI]\""),
-            issue_description: z.string().describe("A detailed comprehensive description of the issue including relevant tool outputs."),
-            relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs, each starting with '//<service>.googleapis.com/...'. For example: '//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/my-instance-name'."),
-            start_time: z.string().describe("The investigation start time, formatted as 'YYYY-MM-DDTHH:mm:ssZ' (UTC).")
-        },
-        (params: CreateInvestigationParams) => toolWrapper(async () => {
-            const {
-                projectId,
-                title,
-                issue_description,
-                relevant_resources,
-                start_time
-            } = params;
-            _validateGcpResourcesAndThrow(relevant_resources);
+    {
+      projectId: z.string().describe('The Google Cloud Project ID.'),
+      title: z
+        .string()
+        .describe(
+          'A human-readable title. You MUST prefix the title with "[Gemini CLI]"'
+        ),
+      issue_description: z
+        .string()
+        .describe(
+          'A detailed comprehensive description of the issue including relevant tool outputs.'
+        ),
+      relevant_resources: z
+        .array(z.string())
+        .describe(
+          "A list of fully-resolved GCP resource URIs, each starting with '//<service>.googleapis.com/...'. For example: '//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/my-instance-name'."
+        ),
+      start_time: z
+        .string()
+        .describe(
+          "The investigation start time, formatted as 'YYYY-MM-DDTHH:mm:ssZ' (UTC)."
+        ),
+    },
+    (params: CreateInvestigationToolInput) =>
+      toolWrapper(async () => {
+        _validateGcpResourcesAndThrow(params.relevant_resources);
 
-            const client = new GeminiCloudAssistClient();
-            const investigation = createInitialInvestigation(
-                title,
-                projectId,
-                issue_description,
-                relevant_resources,
-                start_time
-            );
+        const result: Investigation =
+          await geminiCloudAssistClient.createInvestigation(params);
+        const viewer = new InvestigationViewer(result);
+        const formattedOutput = viewer.render({
+          showObservationsAndHypotheses: false,
+        });
 
-            const result = await client.createInvestigation(projectId, investigation);
-            const viewer = new InvestigationViewer(result);
-            const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: formattedOutput,
+            },
+          ],
+        };
+      })
+  );
 
-            return {
-                content: [{
-                    type: 'text',
-                    text: formattedOutput
-                }]
-            };
-        })
-    );
-
-    server.tool(
-        'run_investigation',
-        `/**
+  server.tool(
+    'run_investigation',
+    `/**
  * Triggers the Gemini analysis, waits for completion, and returns the final report.
  *
  * This is a **synchronous, blocking call** that runs the full analysis.
@@ -213,41 +244,43 @@ export const registerTools = (server: McpServer): void => {
 
  *           a clear summary of the findings (or lack thereof) to the user.
  */`,
-        {
-            projectId: z.string().describe("The GCP Project ID where the investigation resides."),
-            investigationId: z.string().describe("The ID of the investigation to run."),
-            revisionId: z.string().describe("The specific revision ID to run."),
-        },
-        (params: RunInvestigationParams) => toolWrapper(async () => {
-            const {
-                projectId,
-                investigationId,
-                revisionId
-            } = params;
-            const client = new GeminiCloudAssistClient();
+    {
+      projectId: z
+        .string()
+        .describe('The GCP Project ID where the investigation resides.'),
+      investigationId: z
+        .string()
+        .describe('The ID of the investigation to run.'),
+      revisionId: z.string().describe('The specific revision ID to run.'),
+    },
+    (params: RunInvestigationToolInput) =>
+      toolWrapper(async () => {
+        const { projectId, investigationId, revisionId } = params;
+        // This is a blocking call that waits for the LRO to complete
+        // and returns the final investigation object.
+        const finalInvestigation: Investigation =
+          await geminiCloudAssistClient.runInvestigation({
+            projectId,
+            investigationId,
+            revisionId,
+          });
+        const viewer = new InvestigationViewer(finalInvestigation);
+        const formattedOutput = viewer.render();
 
-            // This is a blocking call that waits for the LRO to complete
-            // and returns the final investigation object.
-            const finalInvestigation = await client.runInvestigation({ projectId, investigationId, revisionId });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: formattedOutput,
+            },
+          ],
+        };
+      })
+  );
 
-            // The run is complete. Now, format the final investigation report
-            // using the object we already have.
-            const viewer = new InvestigationViewer(finalInvestigation);
-            const formattedOutput = viewer.render();
-
-
-            return {
-                content: [{
-                    type: 'text',
-                    text: formattedOutput
-                }]
-            };
-        })
-    );
-
-    server.tool(
-        'add_observation',
-        `/**
+  server.tool(
+    'add_observation',
+    `/**
  * Adds a new user observation to an existing investigation.
  *
  * Prerequisites:
@@ -271,37 +304,53 @@ export const registerTools = (server: McpServer): void => {
  *           The final segment of this path is the new 'revision_id' that you must
  *           use for the subsequent 'run_investigation' call.
  */`,
-        {
-            projectId: z.string().describe("The GCP Project ID where the investigation resides."),
-            investigationId: z.string().describe("The ID of the investigation."),
-            observation: z.string().describe("A detailed description of the observation. This can be a direct observation from the user or the result of a previous tool call. When the user asks to add an observation, add relevant tool calls that were run after the previous run_investigation as the observation. You MUST format the observation to include a brief summary of the finding, the full command that was executed, and the complete, verbatim stdout from the command's result."),
-            relevant_resources: z.array(z.string()).describe("A list of fully-resolved GCP resource URIs for any new resources mentioned in the observation, each starting with '//<service>.googleapis.com/...'. Provide an empty list if no new resources are mentioned."),
-        },
-        (params: AddObservationParams) => toolWrapper(async () => {
-            const { projectId, investigationId, observation, relevant_resources } = params;
-            _validateGcpResourcesAndThrow(relevant_resources);
+    {
+      projectId: z
+        .string()
+        .describe('The GCP Project ID where the investigation resides.'),
+      investigationId: z.string().describe('The ID of the investigation.'),
+      observation: z
+        .string()
+        .describe(
+          "A detailed description of the observation. This can be a direct observation from the user or the result of a previous tool call. When the user asks to add an observation, add relevant tool calls that were run after the previous run_investigation as the observation. You MUST format the observation to include a brief summary of the finding, the full command that was executed, and the complete, verbatim stdout from the command's result."
+        ),
+      relevant_resources: z
+        .array(z.string())
+        .describe(
+          "A list of fully-resolved GCP resource URIs for any new resources mentioned in the observation, each starting with '//<service>.googleapis.com/...'. Provide an empty list if no new resources are mentioned."
+        ),
+    },
+    (params: AddObservationToolInput) =>
+      toolWrapper(async () => {
+        const { projectId, investigationId, observation, relevant_resources } =
+          params;
+        _validateGcpResourcesAndThrow(relevant_resources);
 
-            const client = new GeminiCloudAssistClient();
-            const result = await client.addObservation({
-                projectId,
-                investigationId,
-                observation,
-                relevant_resources,
-            });
-            const viewer = new InvestigationViewer(result);
-            const formattedOutput = viewer.render({ showObservationsAndHypotheses: false });
-            return {
-                content: [{
-                    type: 'text',
-                    text: formattedOutput
-                }]
-            };
-        })
-    );
+        const result: Investigation =
+          await geminiCloudAssistClient.addObservation({
+            projectId,
+            investigationId,
+            observation,
+            relevant_resources,
+          });
+        const viewer = new InvestigationViewer(result);
+        const formattedOutput = viewer.render({
+          showObservationsAndHypotheses: false,
+        });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: formattedOutput,
+            },
+          ],
+        };
+      })
+  );
 
-    server.tool(
-        'search_and_analyze_gcp_resources',
-        `/**
+  server.tool(
+    'search_and_analyze_gcp_resources',
+    `/**
  * An intelligent tool for querying, analyzing, and summarizing information
  * about the user's Google Cloud Platform (GCP) environment.
  * This tool delegates the request to a specialized backend agent capable of
@@ -340,25 +389,29 @@ export const registerTools = (server: McpServer): void => {
  * response, which may include detailed analysis, summaries, lists of resources
  * with context, and explanations of findings.
  */`,
-        {
-            request: z.string().describe("The user's full natural language question or request regarding GCP resources."),
-        },
-        (params: RetrieveResourceParams) => toolWrapper(async () => {
-            const {
-                request
-            } = params;
-            const client = new CloudAiCompanionClient();
+    {
+      request: z
+        .string()
+        .describe(
+          "The user's full natural language question or request regarding GCP resources."
+        ),
+    },
+    (params: RetrieveResourceToolInput) =>
+      toolWrapper(async () => {
+        const { request } = params;
+        // This is a blocking call that waits for the LRO to complete
+        // and returns the resource.
+        const retrievedResource: string =
+          await cloudAiCompanionClient.retrieveResource({ request });
 
-            // This is a blocking call that waits for the LRO to complete
-            // and returns the resource.
-            const retrievedResource = await client.retrieveResource({ request });
-
-            return {
-                content: [{
-                    type: 'text',
-                    text: retrievedResource
-                }]
-            };
-        })
-    );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: retrievedResource,
+            },
+          ],
+        };
+      })
+  );
 };

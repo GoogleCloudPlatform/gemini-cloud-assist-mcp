@@ -120,9 +120,7 @@
       "dataUrls": {
         "Correlated Event": "https://console.cloud.google.com/logs/query;query=resource.type%3Dk8s_cluster%20resource.labels.cluster_name%3Dgke-cluster-123%20resource.labels.location%3Dus-east4%20resource.labels.project_id%3Dtest-project%20log_id%2528%22container.googleapis.com%2Fcluster-autoscaler-visibility%22%2529%20jsonPayload.noDecisionStatus.noScaleDown.nodes.node.name%3D~%22%5B%5B%3Aalnum%3A%5D_-%5D%2B%22%20jsonPayload.noDecisionStatus.noScaleDown.nodes.reason.messageId%3D%22no.scale.down.node.no.place.to.move.pods%22%20jsonPayload.noDecisionStatus.noScaleDown.nodes%3A%2A;storageScope=storage,projects%2Ftest-project%2Flocations%2Fglobal%2Fbuckets%2F_Default%2Fviews%2F_AllLogs;startTime=2025-07-16T03:39:11.90691645+00:00;endTime=2025-07-16T05:53:28.007789045+00:00?project=test-project"
       },
-      "baseObservations": [
-        "signals.related_resources"
-      ],
+      "baseObservations": ["signals.related_resources"],
       "relevantResources": [
         "//container.googleapis.com/projects/test-project/locations/us-east4/clusters/gke-cluster-123"
       ],
@@ -265,9 +263,7 @@
         "Logs Explorer": "https://console.cloud.google.com/logs/query;query=resource.type%3D%22k8s_cluster%22%0Aresource.labels.location%3D%22us-east4%22%0Aresource.labels.cluster_name%3D%22gke-cluster-123%22%0Alog_id%2528%22container.googleapis.com%2Fcluster-autoscaler-visibility%22%2529%0A%2528jsonPayload.noDecisionStatus.noScaleUp.reason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.napFailureReason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.skippedMigs.reason.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.unhandledPodGroups.napFailureReasons.messageId%3D%22no.scale.up.nap.disabled%22%20OR%20jsonPayload.noDecisionStatus.noScaleUp.unhandledPodGroups.rejectedMigs.reason.messageId%3D%22no.scale.up.nap.disabled%22%2529;duration=P3D?project=test-project",
         "GKE documentation": "https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-provisioning#enable"
       },
-      "baseObservations": [
-        "diagnostics.gke_ca_no_scale_up.0"
-      ],
+      "baseObservations": ["diagnostics.gke_ca_no_scale_up.0"],
       "systemRelevanceScore": 0.6
     }
   },

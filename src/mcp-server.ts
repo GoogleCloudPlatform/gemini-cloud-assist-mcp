@@ -1,59 +1,52 @@
 #!/usr/bin/env node
 
-/*
-Copyright 2025 Google LLC
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerTools } from './tools.js';
 import { readFileSync } from 'fs';
 
 // Redirect console.log to stderr to not interfere with stdio transport
+// eslint-disable-next-line no-console
 const info = console.error;
 
 interface PackageJson {
-    name: string;
-    version: string;
-    displayName: string;
-    description: string;
+  name: string;
+  version: string;
+  displayName: string;
+  description: string;
 }
 
 async function getServer(): Promise<McpServer> {
-    const packageJson: PackageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)).toString());
-    const server = new McpServer({
-        name: packageJson.name,
-        version: packageJson.version,
-        displayName: packageJson.displayName,
-        description: packageJson.description,
-        protocols: ['mcp/v1'],
-    });
-    registerTools(server);
-    return server;
+  const packageJson: PackageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url)).toString()
+  );
+  const server = new McpServer({
+    name: packageJson.name,
+    version: packageJson.version,
+    displayName: packageJson.displayName,
+    description: packageJson.description,
+    protocols: ['mcp/v1'],
+  });
+  registerTools(server);
+  return server;
 }
 
 async function main(): Promise<void> {
-    try {
-        const stdioTransport = new StdioServerTransport();
-        const server = await getServer();
-        await server.connect(stdioTransport);
-        info('Gemini Cloud Assist MCP server connected via stdio.');
-    } catch (error) {
-        console.error('Failed to start MCP server:', error);
-        process.exit(1);
-    }
+  try {
+    const stdioTransport = new StdioServerTransport();
+    const server = await getServer();
+    await server.connect(stdioTransport);
+    info('Gemini Cloud Assist MCP server connected via stdio.');
+  } catch (error) {
+    info('Failed to start MCP server:', error);
+    process.exit(1);
+  }
 }
 
 main();
