@@ -6,4 +6,5 @@
 
 export interface RetrieveResourceToolInput {
   request: string;
+  projectId?: string;
 }

@@ -23,10 +23,14 @@ interface TaskCompletionResponse {
 
 export class CloudAiCompanionClient extends BaseClient {
   async retrieveResource(params: RetrieveResourceToolInput): Promise<string> {
-    const { request } = params;
+    const { request, projectId } = params;
     try {
       const client = await this.auth.getClient();
-      const projectId = await this.auth.getProjectId();
+      const finalProjectId =
+        projectId != undefined ? projectId : await this.auth.getProjectId();
+      if (finalProjectId == null) {
+        return 'Please provide a GCP project id.';
+      }
 
       const apiRequest = {
         input: {
@@ -46,13 +50,13 @@ export class CloudAiCompanionClient extends BaseClient {
             '@type':
               'type.googleapis.com/google.cloud.cloudaicompanion.v1main.ChatInputDataContext',
             sourceUri: 'mcp',
-            projectId: projectId,
+            projectId: finalProjectId,
           },
         },
       };
 
       await this._writeLog('retrieveResource', 'input', apiRequest);
-      const url = `https://cloudaicompanion.googleapis.com/v1/projects/${projectId}/locations/global/instances/default:completeTask`;
+      const url = `https://cloudaicompanion.googleapis.com/v1/projects/${finalProjectId}/locations/global/instances/default:completeTask`;
       const res = await client.request({
         url,
         method: 'POST',
