@@ -42,11 +42,10 @@ export class BaseClient {
     return new GoogleAuth(authOptions);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected async _writeLog(
     methodName: string,
     type: string,
-    data: any
+    data: Record<string, unknown>
   ): Promise<void> {
     if (!this.enableDebugLogging) {
       return;

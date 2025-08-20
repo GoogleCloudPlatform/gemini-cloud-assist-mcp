@@ -63,7 +63,11 @@ export class CloudAiCompanionClient extends BaseClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(apiRequest),
       });
-      await this._writeLog('retrieveResource', 'output', res.data);
+      await this._writeLog(
+        'retrieveResource',
+        'output',
+        res.data as Record<string, unknown>
+      );
 
       return (res.data as TaskCompletionResponse).output.messages[0].content;
     } catch (error: unknown) {
