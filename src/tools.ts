@@ -56,9 +56,6 @@ async function toolWrapper(
 }
 
 export const registerTools = (server: McpServer): void => {
-  const geminiCloudAssistClient = new GeminiCloudAssistClient();
-  const cloudAiCompanionClient = new CloudAiCompanionClient();
-
   server.tool(
     'fetch_investigation',
     `/**
@@ -126,6 +123,7 @@ export const registerTools = (server: McpServer): void => {
           );
         }
 
+        const geminiCloudAssistClient = new GeminiCloudAssistClient();
         const result: string = await geminiCloudAssistClient.fetchInvestigation(
           {
             projectId,
@@ -201,6 +199,7 @@ export const registerTools = (server: McpServer): void => {
       toolWrapper(async () => {
         _validateGcpResourcesAndThrow(params.relevant_resources);
 
+        const geminiCloudAssistClient = new GeminiCloudAssistClient();
         const result: Investigation =
           await geminiCloudAssistClient.createInvestigation(params);
         const viewer = new InvestigationViewer(result);
@@ -256,6 +255,8 @@ export const registerTools = (server: McpServer): void => {
     (params: RunInvestigationToolInput) =>
       toolWrapper(async () => {
         const { projectId, investigationId, revisionId } = params;
+
+        const geminiCloudAssistClient = new GeminiCloudAssistClient();
         // This is a blocking call that waits for the LRO to complete
         // and returns the final investigation object.
         const finalInvestigation: Investigation =
@@ -326,6 +327,7 @@ export const registerTools = (server: McpServer): void => {
           params;
         _validateGcpResourcesAndThrow(relevant_resources);
 
+        const geminiCloudAssistClient = new GeminiCloudAssistClient();
         const result: Investigation =
           await geminiCloudAssistClient.addObservation({
             projectId,
@@ -409,6 +411,8 @@ export const registerTools = (server: McpServer): void => {
     (params: RetrieveResourceToolInput) =>
       toolWrapper(async () => {
         const { request, projectId } = params;
+
+        const cloudAiCompanionClient = new CloudAiCompanionClient();
         // This is a blocking call that waits for the LRO to complete
         // and returns the resource.
         const retrievedResource: string =

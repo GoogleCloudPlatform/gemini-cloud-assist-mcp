@@ -29,7 +29,7 @@ export class CloudAiCompanionClient extends BaseClient {
       const finalProjectId =
         projectId != undefined ? projectId : await this.auth.getProjectId();
       if (finalProjectId == null) {
-        return 'Please provide a GCP project id.';
+        return 'Please provide a GCP Project ID.';
       }
 
       const apiRequest = {

@@ -101,7 +101,7 @@ export class GeminiCloudAssistClient extends BaseClient {
         throw error;
       }
       throw new ApiError(
-        'An unexpected error occurred during authentication.',
+        'An unexpected error occurred during authentication. Have you run `gcloud auth application-default login`?',
         401,
         error
       );
@@ -112,9 +112,6 @@ export class GeminiCloudAssistClient extends BaseClient {
     if (this.licenseValidated) {
       return;
     }
-    this.logger.error(
-      'Placeholder: License validation check would occur here.'
-    );
     this.licenseValidated = true;
   }
 
@@ -148,20 +145,16 @@ export class GeminiCloudAssistClient extends BaseClient {
         name: investigationName,
         auth: this.auth,
       };
-      await this._writeLog(
-        `_getInvestigationRaw${logSuffix}`,
-        'input',
-        { ...request }
-      );
+      await this._writeLog(`_getInvestigationRaw${logSuffix}`, 'input', {
+        ...request,
+      });
       const res =
         await this.geminicloudassist.projects.locations.investigations.get(
           request
         );
-      await this._writeLog(
-        `_getInvestigationRaw${logSuffix}`,
-        'output',
-        { ...res.data }
-      );
+      await this._writeLog(`_getInvestigationRaw${logSuffix}`, 'output', {
+        ...res.data,
+      });
       return res.data;
     } catch (error: unknown) {
       if (error instanceof ApiError) {
@@ -248,7 +241,6 @@ export class GeminiCloudAssistClient extends BaseClient {
         500,
         error
       );
-      // throw new ApiError(`An unexpected error occurred while listing investigations: ${error}`, 500, error);
     }
   }
 
@@ -266,12 +258,10 @@ export class GeminiCloudAssistClient extends BaseClient {
       next_page_token,
     } = params;
     if (revisionId && !investigationId) {
-      return Promise.reject(
-        new ApiError(
-          'revisionId cannot be provided without investigationId.',
-          400,
-          'INVALID_ARGUMENT'
-        )
+      throw new ApiError(
+        'revisionId cannot be provided without investigationId.',
+        400,
+        'INVALID_ARGUMENT'
       );
     }
 
