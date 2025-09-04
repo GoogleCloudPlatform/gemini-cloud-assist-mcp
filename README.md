@@ -6,6 +6,9 @@
 
 This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients such as the [Gemini CLI](https://github.com/google-gemini/gemini-cli) to the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference). It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment directly from the local command line.
 
+> **NOTE**  
+> The Google Cloud Platform Terms of Service (available at <https://cloud.google.com/terms/>) and the Data Processing and Security Terms (available at <https://cloud.google.com/terms/data-processing-terms>) do not apply to any component of the Gemini Cloud Assist MCP Server software.
+
 To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](https://cloud.google.com/gemini/docs/cloud-assist/) in the Google Cloud documentation.
 
 ### **Key features**
@@ -16,8 +19,7 @@ To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](
 
 ### **MCP configuration**
 
-```
-
+```json
 "mcpServers" : {
    "gemini-cloud-assist": {
      "command": "npx",

@@ -13,7 +13,8 @@
     "license-check:summary": "license-checker --summary",
     "lint": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
-    "format": "prettier --write ."
+    "format:write": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [],
   "author": "Google LLC",
