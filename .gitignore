@@ -8,5 +8,6 @@ dist/*
 personal-docs/*
 api.integration.local.js
 install.sh
-.gemini/*
 src/troubleshooting/samples/*
+.gemini/
+gha-creds-*.json
