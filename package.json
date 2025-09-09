@@ -20,7 +20,8 @@
     "lint": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "format:write": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "mcp-inspector": "npx @modelcontextprotocol/inspector node dist/mcp-server.js"
   },
   "keywords": [],
   "author": "Google LLC",
