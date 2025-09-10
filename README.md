@@ -1,4 +1,4 @@
-# **Gemini Cloud Assist MCP Server**
+# Gemini Cloud Assist MCP Server
 
 [![](https://img.shields.io/github/license/GoogleCloudPlatform/gemini-cloud-assist-mcp)](./LICENSE)
 [![](https://img.shields.io/github/discussions/GoogleCloudPlatform/gemini-cloud-assist-mcp?style=social&logo=github)](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/discussions)
@@ -6,8 +6,8 @@
 
 This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients such as the [Gemini CLI](https://github.com/google-gemini/gemini-cli) to the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference). It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment directly from the local command line.
 
-> **NOTE**  
-> The Google Cloud Platform Terms of Service (available at <https://cloud.google.com/terms/>) and the Data Processing and Security Terms (available at <https://cloud.google.com/terms/data-processing-terms>) do not apply to any component of the Gemini Cloud Assist MCP Server software.
+> [!NOTE]
+> The [Google Cloud Platform Terms of Service](https://cloud.google.com/terms/) and the [Data Processing and Security Terms](https://cloud.google.com/terms/data-processing-terms) do not apply to any component of the Gemini Cloud Assist MCP Server software.
 
 To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](https://cloud.google.com/gemini/docs/cloud-assist/) in the Google Cloud documentation.
 
@@ -19,17 +19,19 @@ To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](
 
 ## Get started
 
-Before you begin, make sure you have the following:
+Before you begin, ensure you have the following set up:
 
-- [**Node.js**](https://nodejs.org/en/download) v20 or later.
-- [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install).
-- Google Cloud project.
-- Service Usage Admin (`roles/serviceusage.serviceUsageAdmin`) role on your user account in order to enable the Cloud Assist APIs.
-- Gemini Cloud Assist User (`roles/geminicloudassist.user`) role on your user account in order to make requests to Cloud Assist APIs.
+- [**Node.js**](https://nodejs.org/en/download) (v20 or later).
+- [**Git**](https://git-scm.com/downloads).
+- [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install) installed and configured.
+- A **Google Cloud project**.
+- The following **IAM roles** on your user account:
+  - `roles/serviceusage.serviceUsageAdmin`: Required to enable the Cloud Assist APIs.
+  - `roles/geminicloudassist.user`: Required to make requests to the Cloud Assist APIs.
 
-### Authenticate to Google Cloud
+### Step 1: Authenticate to Google Cloud
 
-The Cloud Assist MCP server uses your Application Default Credentials (ADC). To set up ADC, run the following `gcloud` commands:
+The Gemini Cloud Assist MCP server uses local Application Default Credentials (ADC) to securely authenticate to Google Cloud. To set up ADC, run the following `gcloud` commands:
 
 ```shell
 # Authenticate your user account to the gcloud CLI
@@ -40,9 +42,11 @@ gcloud auth login
 gcloud auth application-default login
 ```
 
-### [MCP configuration](#mcp-configuration)
+### Step 2: Configure your MCP Client
 
-Paste the MCP configuration to an MCP client of your choosing. We recommend [Gemini CLI](https://github.com/google-gemini/gemini-cli) for the best experience.
+Below is the standard configuration snippet you will use. It tells the client to use `npx` to download and run the latest version of the MCP server on demand. Paste the MCP configuration to an MCP client of your choosing. We recommend using the [Gemini CLI](https://github.com/google-gemini/gemini-cli) for the best experience.
+
+#### MCP config
 
 ```json
 "mcpServers" : {
@@ -53,19 +57,22 @@ Paste the MCP configuration to an MCP client of your choosing. We recommend [Gem
 }
 ```
 
-### Configure Gemini CLI
+## Setup Instructions for MCP Clients
+
+### Gemini CLI
 
 #### Global Installation
 
-Add the [MCP configuration](#mcp-configuration) to the **_\~/.gemini/settings.json_**. This would give you access to MCP Tools in every Gemini CLI session.
+Add the [MCP config](#mcp-config) to the **_\~/.gemini/settings.json_**. This would give you access to MCP Tools in every Gemini CLI session.
 
 #### Project Level Installation
 
-Add the [MCP configuration](#mcp-configuration) to your **_/path/to/project/.gemini/settings.json_** file. This would give you access to the MCP Tools in Gemini CLI sessions created under this project folder only.
+Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.json_** file. This would give you access to the MCP Tools in Gemini CLI sessions created under this project folder only.
 
 #### Extension Installation
 
-:warning: This uses an experimental Gemini CLI feature.
+> [!WARNING]
+> This uses an experimental Gemini CLI feature.
 
 As an alternative to manually editing settings.json, you can install the server directly as a [Gemini CLI extension](https://github.com/google-gemini/gemini-cli/blob/main/docs/extension.md):
 
@@ -77,11 +84,10 @@ If the above command errors, add the `extensionManagement` flag to your **\~/.ge
 
 ```json
 {
-  "mcpServers" : { ... },
+  "mcpServers" : { "..." },
   "experimental": {
     "extensionManagement": true
-  },
-  ...
+  }
 }
 ```
 
@@ -91,31 +97,29 @@ Validate successful installation by running:
 gemini extensions list
 ```
 
-### Configure other MCP Clients
-
-#### Cursor
+### Cursor
 
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=GeminiCloudAssist&config=eyJjb21tYW5kIjoibnB4IC15IGh0dHBzOi8vZ2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2dlbWluaS1jbG91ZC1hc3Npc3QtbWNwIn0%3D)
 
-#### Claude Desktop
+### Claude Desktop
 
 - Launch the Claude Desktop application.
 - Navigate to Settings > Developer.
-- Click the Edit config button to open the claude_desktop_config.json file.
-- Add the [MCP configuration](#mcp-configuration) to claude_desktop_config.json file.
+- Click the Edit config button to open the **claude_desktop_config.json** file.
+- Add the [MCP config](#mcp-config) to **claude_desktop_config.json** file.
 - Save the file and restart Claude Desktop.
 
-#### Claude Code
+### Claude Code
 
 ```shell
-claude mcp add GemininCloudAssist npx -y https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
+claude mcp add GeminiCloudAssist npx -y https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
 ```
 
 Follow [detailed instructions](https://docs.anthropic.com/en/docs/claude-code/mcp#installing-mcp-servers) on Anthropic's documentation for more.
 
-#### Cline
+### Cline
 
-Update `client_mcp_settings.json` with the [MCP configuration](#mcp-configuration).
+Update **cline_mcp_settings.json** with the [MCP config](#mcp-config).
 
 Follow [detailed instructions](https://docs.cline.bot/mcp/adding-mcp-servers-from-github) on Cline's website for more.
 
