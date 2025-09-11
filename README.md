@@ -1,8 +1,4 @@
-# Gemini Cloud Assist MCP Server
-
-[![](https://img.shields.io/github/license/GoogleCloudPlatform/gemini-cloud-assist-mcp)](./LICENSE)
-[![](https://img.shields.io/github/discussions/GoogleCloudPlatform/gemini-cloud-assist-mcp?style=social&logo=github)](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/discussions)
-[![](https://img.shields.io/github/stars/GoogleCloudPlatform/gemini-cloud-assist-mcp?style=social)](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp)
+# Gemini Cloud Assist MCP server
 
 This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients such as the [Gemini CLI](https://github.com/google-gemini/gemini-cli) to the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference). It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment directly from the local command line.
 
@@ -11,13 +7,13 @@ This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol
 
 To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](https://cloud.google.com/gemini/docs/cloud-assist/) in the Google Cloud documentation.
 
-## ✨ Key Features
+## ✨ Key features
 
 - **Create and run investigations:** Create and run Cloud Assist investigations to find the root cause of complex issues.
 - **Dig deeper and iterate on investigations:** Get more details about investigation outcomes and add observations to refine the analysis.
 - **Find and analyze Google Cloud resources**: Quickly check the status and performance of your Cloud resources and applications.
 
-## Get started
+## Quick start
 
 Before you begin, ensure you have the following set up:
 
@@ -42,7 +38,7 @@ gcloud auth login
 gcloud auth application-default login
 ```
 
-### Step 2: Configure your MCP Client
+### Step 2: Configure your MCP client
 
 Below is the standard configuration snippet you will use. It tells the client to use `npx` to download and run the latest version of the MCP server on demand. Paste the MCP configuration to an MCP client of your choosing. We recommend using the [Gemini CLI](https://github.com/google-gemini/gemini-cli) for the best experience.
 
@@ -57,19 +53,19 @@ Below is the standard configuration snippet you will use. It tells the client to
 }
 ```
 
-## Setup Instructions for MCP Clients
+## Setup instructions for MCP clients
 
 ### Gemini CLI
 
-#### Global Installation
+#### Global installation
 
 Add the [MCP config](#mcp-config) to the **_\~/.gemini/settings.json_**. This would give you access to MCP Tools in every Gemini CLI session.
 
-#### Project Level Installation
+#### Project-level installation
 
 Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.json_** file. This would give you access to the MCP Tools in Gemini CLI sessions created under this project folder only.
 
-#### Extension Installation
+#### Extension installation
 
 > [!WARNING]
 > This uses an experimental Gemini CLI feature.
@@ -123,7 +119,7 @@ Update **cline_mcp_settings.json** with the [MCP config](#mcp-config).
 
 Follow [detailed instructions](https://docs.cline.bot/mcp/adding-mcp-servers-from-github) on Cline's website for more.
 
-## 🛠️ MCP Tools
+## 🛠️ MCP tools
 
 - **`create_investigation`**: Creates a new Gemini Cloud Assist investigation.
 - **`run_investigation`**: Run a Gemini Cloud Assist investigation that you created.
