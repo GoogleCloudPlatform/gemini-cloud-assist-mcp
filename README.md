@@ -1,5 +1,9 @@
 # Gemini Cloud Assist MCP server
 
+[![](https://img.shields.io/github/license/GoogleCloudPlatform/gemini-cloud-assist-mcp)](./LICENSE)
+[![](https://img.shields.io/github/discussions/GoogleCloudPlatform/gemini-cloud-assist-mcp?style=social&logo=github)](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/discussions)
+[![](https://img.shields.io/github/stars/GoogleCloudPlatform/gemini-cloud-assist-mcp?style=social)](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp)
+
 This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients such as the [Gemini CLI](https://github.com/google-gemini/gemini-cli) to the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference). It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment directly from the local command line.
 
 > [!NOTE]
