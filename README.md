@@ -82,7 +82,7 @@ Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.j
 
 ### Cursor
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=GeminiCloudAssist&config=eyJjb21tYW5kIjoibnB4IC15IGh0dHBzOi8vZ2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2dlbWluaS1jbG91ZC1hc3Npc3QtbWNwIn0%3D)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=GeminiCloudAssist&config=eyJjb21tYW5kIjoibnB4IC15IGh0dHBzOi8vZ2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2dlbWluaS1jbG91ZC1hc3Npc3QtbWNwIiwidGltZW91dCI6NjAwMDAwfQ%3D%3D)
 
 ### Claude Desktop
 
