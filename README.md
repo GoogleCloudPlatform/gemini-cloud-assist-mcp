@@ -62,7 +62,7 @@ Below is the standard configuration snippet you will use. It tells the client to
 Install the MCP server as a [Gemini CLI extension](https://github.com/google-gemini/gemini-cli/blob/main/docs/extension.md):
 
 ```shell
-gemini extensions add --source https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
+gemini extensions install https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
 ```
 
 Validate successful installation by running:
