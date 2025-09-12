@@ -1,44 +1,33 @@
-# **Gemini Cloud Assist MCP Server**
-
-[![](https://img.shields.io/github/license/GoogleCloudPlatform/gemini-cloud-assist-mcp)](./LICENSE)
-[![](https://img.shields.io/github/discussions/GoogleCloudPlatform/gemini-cloud-assist-mcp?style=social&logo=github)](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/discussions)
-[![](https://img.shields.io/github/stars/GoogleCloudPlatform/gemini-cloud-assist-mcp?style=social)](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp)
+# Gemini Cloud Assist MCP server
 
 This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients such as the [Gemini CLI](https://github.com/google-gemini/gemini-cli) to the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference). It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment directly from the local command line.
 
+> [!NOTE]
+> The **Google Cloud Platform Terms of Service** (available at https://cloud.google.com/terms/) and the **Data Processing and Security Terms** (available at https://cloud.google.com/terms/data-processing-terms) do not apply to any component of the Gemini Cloud Assist MCP Server software.
+
 To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](https://cloud.google.com/gemini/docs/cloud-assist/) in the Google Cloud documentation.
 
-### **Key features**
+## ✨ Key features
 
 - **Create and run investigations:** Create and run Cloud Assist investigations to find the root cause of complex issues.
 - **Dig deeper and iterate on investigations:** Get more details about investigation outcomes and add observations to refine the analysis.
 - **Find and analyze Google Cloud resources**: Quickly check the status and performance of your Cloud resources and applications.
 
-### **MCP configuration**
+## Quick start
 
-```
+Before you begin, ensure you have the following set up:
 
-"mcpServers" : {
-   "gemini-cloud-assist": {
-     "command": "npx",
-     "args": ["-y", "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp"]
-   }
-}
-```
+- [**Node.js**](https://nodejs.org/en/download) (v20 or later).
+- [**Git**](https://git-scm.com/downloads).
+- [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install) installed and configured.
+- A **Google Cloud project**.
+- The following **IAM roles** on your user account:
+  - `roles/serviceusage.serviceUsageAdmin`: Required to enable the Cloud Assist APIs.
+  - `roles/geminicloudassist.user`: Required to make requests to the Cloud Assist APIs.
 
-## **Get started**
+### Step 1: Authenticate to Google Cloud
 
-Before you begin, make sure you have the following:
-
-- [**Node.js**](https://nodejs.org/en/download) v20 or later.
-- [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install).
-- Google Cloud project.
-- Service Usage Admin (`roles/serviceusage.serviceUsageAdmin`) role on your user account in order to enable the Cloud Assist APIs.
-- Gemini Cloud Assist User (`roles/geminicloudassist.user`) role on your user account in order to make requests to Cloud Assist APIs.
-
-### **Authenticate to Google Cloud**
-
-The Cloud Assist MCP server uses your Application Default Credentials (ADC). To set up ADC, run the following `gcloud` commands:
+The Gemini Cloud Assist MCP server uses local Application Default Credentials (ADC) to securely authenticate to Google Cloud. To set up ADC, run the following `gcloud` commands:
 
 ```shell
 # Authenticate your user account to the gcloud CLI
@@ -49,28 +38,83 @@ gcloud auth login
 gcloud auth application-default login
 ```
 
-### **Configure with Gemini CLI**
+### Step 2: Configure your MCP client
 
-To use the Cloud Assist MCP server with the Gemini CLI, add the following to your `settings.json` file:
+Below is the standard configuration snippet you will use. It tells the client to use `npx` to download and run the latest version of the MCP server on demand. Paste the MCP configuration to an MCP client of your choosing. We recommend using the [Gemini CLI](https://github.com/google-gemini/gemini-cli) for the best experience.
+
+#### MCP config
 
 ```json
-"mcpServers": {
-  "gemini-cloud-assist": {
-    "command": "npx",
-    "args": ["-y", "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp"]
-  }
+"mcpServers" : {
+   "GeminiCloudAssist": {
+     "command": "npx",
+     "args": ["-y", "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp"],
+     "timeout": 600000
+   }
 }
 ```
 
-## **MCP tools**
+## Setup instructions for MCP clients
+
+### Gemini CLI
+
+#### Option 1 (recommended): Extension installation
+
+Install the MCP server as a [Gemini CLI extension](https://github.com/google-gemini/gemini-cli/blob/main/docs/extension.md):
+
+```shell
+gemini extensions install https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
+```
+
+Validate successful installation by running:
+
+```shell
+gemini extensions list
+```
+
+#### Option 2: Global installation
+
+Add the [MCP config](#mcp-config) to the **_\~/.gemini/settings.json_**. This gives you access to MCP Tools in every Gemini CLI session.
+
+#### Option 3: Project-level installation
+
+Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.json_** file. This gives you access to the MCP Tools in Gemini CLI sessions created under this project folder only.
+
+### Cursor
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=GeminiCloudAssist&config=eyJjb21tYW5kIjoibnB4IC15IGh0dHBzOi8vZ2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2dlbWluaS1jbG91ZC1hc3Npc3QtbWNwIiwidGltZW91dCI6NjAwMDAwfQ%3D%3D)
+
+### Claude Desktop
+
+- Launch the Claude Desktop application.
+- Navigate to Settings > Developer.
+- Click the Edit config button to open the **claude_desktop_config.json** file.
+- Add the [MCP config](#mcp-config) to the **claude_desktop_config.json** file.
+- Save the file and restart Claude Desktop.
+
+### Claude Code
+
+```shell
+claude mcp add GeminiCloudAssist npx -y https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
+```
+
+Follow [detailed instructions](https://docs.anthropic.com/en/docs/claude-code/mcp#installing-mcp-servers) on Anthropic's documentation for more information.
+
+### Cline
+
+Update **cline_mcp_settings.json** with the [MCP config](#mcp-config).
+
+Follow [detailed instructions](https://docs.cline.bot/mcp/adding-mcp-servers-from-github) on Cline's website for more information.
+
+## 🛠️ MCP tools
 
 - **`create_investigation`**: Creates a new Gemini Cloud Assist investigation.
-- **`run_investigation`**: Run a Gemini Cloud Assist investigation that you created.
-- **`add_observation`**: Adds new information to an investigation that you ran before.
+- **`run_investigation`**: Runs an existing Gemini Cloud Assist investigation that you created.
+- **`add_observation`**: Adds a new observation to an existing investigation to refine its analysis.
 - **`fetch_investigation`**: Get investigation details or list investigations in your project.
 - **`search_and_analyze_gcp_resources`**: Find specific Cloud resources with natural language queries.
 
-## **Examples**
+## Examples
 
 This section shows examples of the tasks you can perform with the Cloud Assist MCP server with the Gemini CLI, including example prompts and responses.
 
@@ -81,11 +125,11 @@ This section shows examples of the tasks you can perform with the Cloud Assist M
 Using 1 MCP server (Ctrl+T to view descriptions)
 
 ╭───────────────────────────────────────────────────────────────────────────────────╮
-│  > Investigate the pending pods issue in my weather-front cluster                 │
+│  > Investigate the pending pods issue in my test-cluster-1 cluster                │
 ╰───────────────────────────────────────────────────────────────────────────────────╯
 
 ✦ I can help with that. I'll start an investigation into the pending pods issue in
-  your weather-front cluster. To do that, I'll run a few commands to get the
+  your test-cluster-1 cluster. To do that, I'll run a few commands to get the
   information I need to start the investigation.
  ╭──────────────────────────────────────────────────────────────────────────────────╮
  │ ✔  Shell gcloud config get-value project (Getting the configured GCP project.)   |
@@ -93,13 +137,13 @@ Using 1 MCP server (Ctrl+T to view descriptions)
  ...                                                                                |
  ╰──────────────────────────────────────────────────────────────────────────────────╯
 
-✦ I'll now create an investigation into the pending pods issue in your weather-front GKE cluster.
+✦ I'll now create an investigation into the pending pods issue in your test-cluster-1 GKE cluster.
  ╭──────────────────────────────────────────────────────────────────────────────────╮
  │ ✔  create_investigation (gemini-cloud-assist-mcp MCP Server) create_investigati… │
  │                                                                                  │
  │    ## Gemini Cloud Assist Investigation                                          │
  │                                                                                  │
- │    **Name**: [Gemini CLI] Pending pods in weather-front GKE cluster              │
+ │    **Name**: [Gemini CLI] Pending pods in test-cluster-1 GKE cluster             │
  ...                                                                                |
  ...                                                                                |
  ╰──────────────────────────────────────────────────────────────────────────────────╯
@@ -113,7 +157,7 @@ Using 1 MCP server (Ctrl+T to view descriptions)
 
 ✦ The investigation is complete. Here's what I found:
 
-  The main problem is that your GKE cluster `weather-front` is out of resources. It
+  The main problem is that your GKE cluster `test-cluster-1` is out of resources. It
   has only one node, and that node is full. This is causing new pods to get stuck in
   a "pending" state because there's no room for them.
 
@@ -123,7 +167,7 @@ Using 1 MCP server (Ctrl+T to view descriptions)
   meet the demand.
 
   I have two recommendations to fix this:
-   1. Enable Node Auto-Provisioning for the weather-front cluster. This is the best
+   1. Enable Node Auto-Provisioning for the test-cluster-1 cluster. This is the best
       long-term solution because it will allow the cluster to automatically scale up
       and down as needed.
    2. Manually add more nodes to the cluster. This is a good short-term solution that
@@ -158,7 +202,7 @@ Using 1 MCP server (Ctrl+T to view descriptions)
  ╰───────────────────────────────────────────────────────────────────────────────────╯
 
 ✦ That's a great question. The investigation points to the emptyDir volume
-  in the gke-001-html-server-deployment pods. I can check the storage usage
+  in the gke-001-deployment pods. I can check the storage usage
   inside one of the running pods to confirm this.
 
   First, I'll list the pods to find one that is currently running.
@@ -180,9 +224,9 @@ Using 1 MCP server (Ctrl+T to view descriptions)
   To figure this out, I'll need to get a shell on the node itself and
   investigate the storage usage from there. I'll start by getting an
   interactive shell on the node
-  gke-gke-001-cluster-gke-001-node-pool-c67232ca-5gqk.
+  gke-001-cluster-gke-001-node-pool-001.
  ╭───────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  Shell gcloud compute ssh gke-gke-001-cluster-gke-001-node-pool-c672…           │
+ │ ✔  Shell gcloud compute ssh gke-001-cluster-gke-001-node-pool-001…                │
  ...                                                                                 |
  ...                                                                                 |
  │    ERROR: (gcloud.compute.ssh) [/usr/local/bin/ssh] exited                        │
@@ -229,7 +273,7 @@ Using 1 MCP server (Ctrl+T to view descriptions)
      kubelet is failing to reopen log files due to "no space left on
      device," which is a clear indicator of this issue.
    * Another Deployment is Implicated: The investigation also points to
-     another deployment, gke-001-deployment, as a potential source of the
+     another deployment, gke-002-deployment, as a potential source of the
      problem. The logs mention that this deployment is "configured to fill
      up disk."
 ```
@@ -257,25 +301,21 @@ Using 1 MCP server (Ctrl+T to view descriptions)
  │            *   **Machine Type:** `custom-1-3840`                                  │
  │            *   **Initial Node Count:** 3                                          │
  │            *   **Autoscaling:** Enabled (min: 1, max: 5)                          │
- │            *   **MIGs:**                                                          │
- │    `gke-cluster-1-default-pool-1fadf212-grp`                                      │
+ │            *   **MIGs:**  `gke-cluster-1-default-pool-001-grp`                    │
  │                                                                                   │
- │    *   **Cluster: `anthos-sample-cluster1` (Zone:                                 │
- │    `us-central1-c`)**                                                             │
+ │    *   **Cluster: `anthos-cluster-1` (Zone: `us-central1-c`)**                    |
  │        *   **Node Pool:** `default-pool`                                          │
  │            *   **Machine Type:** `e2-standard-2`                                  │
  │            *   **Initial Node Count:** 3                                          │
  │            *   **Autoscaling:** Enabled (min: 2, max: 3)                          │
- │            *   **MIGs:**                                                          │
- │    `gke-anthos-sample-cluste-default-pool-123adafs-grp`                           │
+ │            *   **MIGs:** `gke-anthos-cluster-default-pool-001-grp`                |
  │                                                                                   │
  │    *   **Cluster: `cluster-2` (Zone: `us-central1-c`)**                           │
  │        *   **Node Pool:** `default-pool-1`                                        │
  │            *   **Machine Type:** `e2-micro`                                       │
  │            *   **Initial Node Count:** 3                                          │
  │            *   **Autoscaling:** Enabled (max: 5)                                  │
- │            *   **MIGs:**                                                          │
- │    `gke-cluster-2-default-pool-1-15135413-grp`                                    │
+ │            *   **MIGs:**  `gke-cluster-2-default-pool-001-grp`                    │
  ╰───────────────────────────────────────────────────────────────────────────────────╯
 ✦ OK. Here's an overview of your GKE node pools, their clusters, and MIGs. Is
   there anything else I can help you with?
@@ -289,7 +329,7 @@ Using 1 MCP server (Ctrl+T to view descriptions)
  │    I found the following details for the requested Managed                        │
  │    Instance Groups (MIGs):                                                        │
  │                                                                                   │
- │    *   **gke-cluster-1-default-pool-1fadf212-grp**:                               │
+ │    *   **gke-cluster-1-default-pool-001-grp**:                                    │
  │        *   **Region/Zone**: us-central1-a                                         │
  │        *   **Creation Timestamp**: 2024-03-25T13:57:25.588-07:00                  │
  │        *   **Current Actions**: 2 instances with no current                       │
@@ -297,11 +337,11 @@ Using 1 MCP server (Ctrl+T to view descriptions)
  │        *   **Target Size**: 2                                                     │
  │        *   **Status**: Stable                                                     │
  │        *   **Instance Template**:                                                 │
- │    `gke-cluster-1-default-pool-1fadf212`                                          │
+ │    `gke-cluster-1-default-pool-001`                                               │
  │        *   **Update Policy**: Opportunistic, minimal action                       │
  │    REPLACE, max surge 1, max unavailable 1                                        │
  │                                                                                   │
- │    *   **gke-anthos-sample-cluste-default-pool-123adafs-grp**:                    │
+ │    *   **gke-anthos-cluster-default-pool-001-grp**:                               │
  │        *   **Region/Zone**: us-central1-c                                         │
  │        *   **Creation Timestamp**: 2024-04-03T09:09:32.058-07:00                  │
  │        *   **Current Actions**: 2 instances with no current                       │
@@ -309,12 +349,12 @@ Using 1 MCP server (Ctrl+T to view descriptions)
  │        *   **Target Size**: 2                                                     │
  │        *   **Status**: Stable                                                     │
  │        *   **Instance Template**:                                                 │
- │    `gke-anthos-sample-cluste-default-pool-123adafs`                               │
+ │    `gke-anthos-cluster-default-pool-001`                                          │
  │        *   **Update Policy**: Opportunistic, minimal action                       │
  │    REPLACE, max surge 1, max unavailable 1                                        │
  │        *   **Named Ports**: http (port 3337)                                      │
  │                                                                                   │
- │    *   **gke-cluster-2-default-pool-1-15135413-grp**:                             │
+ │    *   **gke-cluster-2-default-pool-001-grp**:                                    │
  │        *   **Region/Zone**: us-central1-c                                         │
  │        *   **Creation Timestamp**: 2024-11-13T21:46:01.072-08:00                  │
  │        *   **Current Actions**: 5 instances with no current                       │
@@ -322,7 +362,7 @@ Using 1 MCP server (Ctrl+T to view descriptions)
  │        *   **Target Size**: 5                                                     │
  │        *   **Status**: Stable                                                     │
  │        *   **Instance Template**:                                                 │
- │    `gke-cluster-2-default-pool-1-15135413`                                        │
+ │    `gke-cluster-2-default-pool-001`                                               │
  │        *   **Update Policy**: Opportunistic, minimal action                       │
  │    REPLACE, max surge 1, max unavailable 1                                        │
  │                                                                                   │
@@ -339,7 +379,6 @@ Using 1 MCP server (Ctrl+T to view descriptions)
 ## **Contributing**
 
 - If you encounter a bug, please file an issue on our [GitHub Issues](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/issues) page.
-- For questions and discussions, please use [GitHub Discussions](https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/discussions).
 - Before sending a pull request, please review our [Contributing Guide](./docs/CONTRIBUTING.md).
 
 ## **License**

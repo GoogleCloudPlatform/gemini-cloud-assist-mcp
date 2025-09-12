@@ -4,7 +4,7 @@
   "mcpServers": {
     "gemini-cloud-assist-mcp": {
       "command": "npm",
-      "args": ["start"],
+      "args": ["run", "start:fresh"],
       "cwd": "${extensionPath}",
       "timeout": 600000
     }
