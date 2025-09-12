@@ -12,6 +12,7 @@
   },
   "scripts": {
     "start": "node dist/mcp-server.js",
+    "start:fresh": "npm install && npm start",
     "build": "tsc",
     "prepare": "npm run build",
     "test": "vitest",

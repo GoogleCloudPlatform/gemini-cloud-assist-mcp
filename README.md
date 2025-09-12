@@ -48,7 +48,8 @@ Below is the standard configuration snippet you will use. It tells the client to
 "mcpServers" : {
    "GeminiCloudAssist": {
      "command": "npx",
-     "args": ["-y", "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp"]
+     "args": ["-y", "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp"],
+     "timeout": 600000
    }
 }
 ```
