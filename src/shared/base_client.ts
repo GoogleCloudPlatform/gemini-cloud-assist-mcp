@@ -50,7 +50,7 @@ export class BaseClient {
     if (!this.enableDebugLogging) {
       return;
     }
-    const dir = path.join(__dirname, '..', 'samples');
+    const dir = path.join(__dirname, '..', '..', 'raw_logs');
     try {
       await fs.promises.mkdir(dir, {
         recursive: true,
