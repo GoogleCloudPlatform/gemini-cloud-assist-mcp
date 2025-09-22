@@ -1,10 +1,17 @@
 {
-  "name": "gemini-cloud-assist-mcp",
+  "name": "@google-cloud/gemini-cloud-assist-mcp",
   "version": "0.1.0",
   "displayName": "Gemini Cloud Assist MCP",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp.git"
+    "url": "git+https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/issues"
+  },
+  "homepage": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp#readme",
+  "publishConfig": {
+    "registry": "https://wombat-dressing-room.appspot.com/"
   },
   "type": "module",
   "main": "dist/mcp-server.js",
