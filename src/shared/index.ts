@@ -4,6 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export * from './base_client.js';
-export * from './errors.js';
-export * from './types.js';
+export {
+  BaseClient,
+  productName,
+  productVersion,
+  userAgent,
+} from './base_client.js';
+export { ApiError } from './errors.js';
+export type { BaseClientOptions, Logger } from './types.js';

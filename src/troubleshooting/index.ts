@@ -6,3 +6,4 @@
 
 export * from './api/index.js';
 export * from './formatting_utils.js';
+export * from './api/types.js';
