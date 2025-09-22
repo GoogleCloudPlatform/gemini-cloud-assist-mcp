@@ -2,6 +2,10 @@
   "name": "gemini-cloud-assist-mcp",
   "version": "0.1.0",
   "displayName": "Gemini Cloud Assist MCP",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp.git"
+  },
   "type": "module",
   "main": "dist/mcp-server.js",
   "files": [
