@@ -50,7 +50,7 @@ Below is the standard configuration snippet you will use. It tells the client to
 "mcpServers" : {
    "GeminiCloudAssist": {
      "command": "npx",
-     "args": ["-y", "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp"],
+     "args": ["-y", "@google-cloud/gemini-cloud-assist-mcp"],
      "timeout": 600000
    }
 }
@@ -84,7 +84,7 @@ Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.j
 
 ### Cursor
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=GeminiCloudAssist&config=eyJjb21tYW5kIjoibnB4IC15IGh0dHBzOi8vZ2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2dlbWluaS1jbG91ZC1hc3Npc3QtbWNwIiwidGltZW91dCI6NjAwMDAwfQ%3D%3D)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=GeminiCloudAssist&config=eyJ0aW1lb3V0Ijo2MDAwMDAsImNvbW1hbmQiOiJucHggLXkgQGdvb2dsZS1jbG91ZC9nZW1pbmktY2xvdWQtYXNzaXN0LW1jcCJ9)
 
 ### Claude Desktop
 
