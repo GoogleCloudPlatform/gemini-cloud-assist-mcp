@@ -27,6 +27,7 @@
     "build": "tsc",
     "prepare": "npm run build",
     "test": "vitest",
+    "test:unit": "vitest --exclude '**/*.integration.test.ts'",
     "license-check": "license-checker",
     "license-check:summary": "license-checker --summary",
     "lint": "eslint 'src/**/*.ts'",
