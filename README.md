@@ -97,7 +97,7 @@ Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.j
 ### Claude Code
 
 ```shell
-claude mcp add GeminiCloudAssist npx -y https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
+claude mcp add GeminiCloudAssist npx -y @google-cloud/gemini-cloud-assist-mcp@latest
 ```
 
 Follow [detailed instructions](https://docs.anthropic.com/en/docs/claude-code/mcp#installing-mcp-servers) on Anthropic's documentation for more information.
