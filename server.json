@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
+  "name": "io.github.GoogleCloudPlatform/gemini-cloud-assist-mcp",
+  "description": "MCP Server for understanding, managing & troubleshooting your GCP environment.",
+  "status": "active",
+  "repository": {
+    "url": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp",
+    "source": "github"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@google-cloud/gemini-cloud-assist-mcp",
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": []
+    }
+  ]
+}
