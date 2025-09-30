@@ -1,6 +1,6 @@
 {
   "name": "@google-cloud/gemini-cloud-assist-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "displayName": "Gemini Cloud Assist MCP",
   "mcpName": "io.github.GoogleCloudPlatform/gemini-cloud-assist-mcp",
   "repository": {
