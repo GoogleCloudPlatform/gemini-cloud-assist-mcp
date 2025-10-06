@@ -8,3 +8,10 @@ export interface RetrieveResourceToolInput {
   request: string;
   projectId?: string;
 }
+
+export interface CompleteTaskInput {
+  request: string;
+  projectId?: string;
+  experience: string;
+  agent?: string;
+}

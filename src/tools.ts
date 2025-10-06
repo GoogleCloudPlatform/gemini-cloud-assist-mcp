@@ -416,7 +416,12 @@ export const registerTools = (server: McpServer): void => {
         // This is a blocking call that waits for the LRO to complete
         // and returns the resource.
         const retrievedResource: string =
-          await cloudAiCompanionClient.retrieveResource({ request, projectId });
+          await cloudAiCompanionClient.completeTask({
+            request,
+            projectId,
+            experience: CloudAiCompanionClient.EXPERIENCE_CHAT,
+            agent: CloudAiCompanionClient.AGENT_PLAN_AND_ACT,
+          });
 
         return {
           content: [

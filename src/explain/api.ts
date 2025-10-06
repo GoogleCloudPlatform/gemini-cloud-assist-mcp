@@ -6,7 +6,7 @@
 
 import { ApiError } from '../shared/errors.js';
 import { BaseClient } from '../shared/base_client.js';
-import { RetrieveResourceToolInput } from './types.js';
+import { CompleteTaskInput } from './types.js';
 
 interface TaskCompletionMessage {
   content: string;
@@ -22,8 +22,12 @@ interface TaskCompletionResponse {
 }
 
 export class CloudAiCompanionClient extends BaseClient {
-  async retrieveResource(params: RetrieveResourceToolInput): Promise<string> {
-    const { request, projectId } = params;
+  static readonly EXPERIENCE_CHAT = '/cloud-assist/chat';
+  static readonly AGENT_PLAN_AND_ACT = 'planandact';
+
+  async completeTask(params: CompleteTaskInput): Promise<string> {
+    const { request, projectId, experience, agent } = params;
+
     try {
       const client = await this.auth.getClient();
       const finalProjectId =
@@ -42,8 +46,8 @@ export class CloudAiCompanionClient extends BaseClient {
           ],
         },
         experienceContext: {
-          experience: '/cloud-assist/chat',
-          agent: 'planandact',
+          experience: experience,
+          agent: agent,
         },
         inputDataContext: {
           additionalContext: {
@@ -55,7 +59,7 @@ export class CloudAiCompanionClient extends BaseClient {
         },
       };
 
-      await this._writeLog('retrieveResource', 'input', apiRequest);
+      await this._writeLog('completeTask', 'input', apiRequest);
       const url = `https://cloudaicompanion.googleapis.com/v1/projects/${finalProjectId}/locations/global/instances/default:completeTask`;
       const res = await client.request({
         url,
@@ -64,7 +68,7 @@ export class CloudAiCompanionClient extends BaseClient {
         body: JSON.stringify(apiRequest),
       });
       await this._writeLog(
-        'retrieveResource',
+        'completeTask',
         'output',
         res.data as Record<string, unknown>
       );
