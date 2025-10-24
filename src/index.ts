@@ -6,4 +6,3 @@
 
 export { registerTools } from './tools.js';
 export * from './troubleshooting/index.js';
-export * from './explain/index.js';

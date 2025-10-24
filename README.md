@@ -14,7 +14,6 @@ To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](
 
 - **Create and run investigations:** Create and run Cloud Assist investigations to find the root cause of complex issues.
 - **Dig deeper and iterate on investigations:** Get more details about investigation outcomes and add observations to refine the analysis.
-- **Find and analyze Google Cloud resources**: Quickly check the status and performance of your Cloud resources and applications.
 
 ## Quick start
 
@@ -115,7 +114,6 @@ Follow [detailed instructions](https://docs.cline.bot/mcp/adding-mcp-servers-fro
 - **`run_investigation`**: Runs an existing Gemini Cloud Assist investigation that you created.
 - **`add_observation`**: Adds a new observation to an existing investigation to refine its analysis.
 - **`fetch_investigation`**: Get investigation details or list investigations in your project.
-- **`search_and_analyze_gcp_resources`**: Find specific Cloud resources with natural language queries.
 
 ## Examples
 
