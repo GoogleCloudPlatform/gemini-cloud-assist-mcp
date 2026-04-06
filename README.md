@@ -1,5 +1,12 @@
 # Gemini Cloud Assist MCP server
 
+> [!WARNING]
+> **Deprecation Notice & Migration to Remote MCP Server**
+>
+> The Gemini Cloud Assist MCP server is migrating from a local Node.js architecture to a Remote MCP Server architecture. The older local Node.js server (`v0.2.0`) will lose support in the coming months.
+>
+> If you wish to continue using the legacy local server during the transition, please pin your configuration to version `v0.2.0` as shown in the instructions below.
+
 [![npm @google-cloud/gemini-cloud-assist-mcp package](https://img.shields.io/npm/v/@google-cloud/gemini-cloud-assist-mcp.svg)](https://www.npmjs.com/package/@google-cloud/gemini-cloud-assist-mcp)
 [![](https://img.shields.io/github/license/GoogleCloudPlatform/gemini-cloud-assist-mcp)](./LICENSE)
 
@@ -50,7 +57,7 @@ Below is the standard configuration snippet you will use. It tells the client to
 "mcpServers" : {
    "GeminiCloudAssist": {
      "command": "npx",
-     "args": ["-y", "@google-cloud/gemini-cloud-assist-mcp@latest"],
+     "args": ["-y", "@google-cloud/gemini-cloud-assist-mcp@0.2.0"],
      "timeout": 600000
    }
 }
@@ -97,7 +104,7 @@ Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.j
 ### Claude Code
 
 ```shell
-claude mcp add GeminiCloudAssist npx -y @google-cloud/gemini-cloud-assist-mcp@latest
+claude mcp add GeminiCloudAssist npx -y @google-cloud/gemini-cloud-assist-mcp@0.2.0
 ```
 
 Follow [detailed instructions](https://docs.anthropic.com/en/docs/claude-code/mcp#installing-mcp-servers) on Anthropic's documentation for more information.
