@@ -29,9 +29,8 @@ async function getServer(): Promise<McpServer> {
   const server = new McpServer({
     name: packageJson.name,
     version: packageJson.version,
-    displayName: packageJson.displayName,
+    title: packageJson.displayName,
     description: packageJson.description,
-    protocols: ['mcp/v1'],
   });
   registerTools(server);
   return server;
