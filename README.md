@@ -1,11 +1,15 @@
 # Gemini Cloud Assist MCP server
 
+> [!IMPORTANT]
+> **Private Preview Notice**
+> The Gemini Cloud Assist MCP server APIs are currently in Private Preview and are behind an allowlist. Please contact your Google Cloud account team to request access.
+
 > [!WARNING]
 > **Deprecation Notice & Migration to Remote MCP Server**
 >
-> The Gemini Cloud Assist MCP server is migrating from a local Node.js architecture to a Remote MCP Server architecture. The older local Node.js server (`v0.2.0`) will lose support in the coming months.
+> The Gemini Cloud Assist MCP server has migrated from a local Node.js architecture to a Remote MCP Server architecture. The older local Node.js server will lose support in the coming months.
 >
-> If you wish to continue using the legacy local server during the transition, please pin your configuration to version `v0.2.0` as shown in the instructions below.
+> To use the new Remote MCP Servers, please use version `v0.8.0` or later. If you wish to continue using the legacy local server during the transition, please pin your configuration to older versions.
 
 [![npm @google-cloud/gemini-cloud-assist-mcp package](https://img.shields.io/npm/v/@google-cloud/gemini-cloud-assist-mcp.svg)](https://www.npmjs.com/package/@google-cloud/gemini-cloud-assist-mcp)
 [![](https://img.shields.io/github/license/GoogleCloudPlatform/gemini-cloud-assist-mcp)](./LICENSE)
@@ -19,15 +23,16 @@ To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](
 
 ## ✨ Key features
 
-- **Create and run investigations:** Create and run Cloud Assist investigations to find the root cause of complex issues.
-- **Dig deeper and iterate on investigations:** Get more details about investigation outcomes and add observations to refine the analysis.
+- **Design infrastructure:** Create and architect infrastructure configurations for Google Cloud.
+- **Troubleshoot issues:** Run deep investigations to find the root cause of complex issues in your Google Cloud environment.
+- **Manage resources:** Create, update, and delete Google Cloud resources directly from your chat workflow (requires Agent Actions).
+- **Optimize costs:** Analyze your spend, track costs, and identify opportunities for efficiency such as idle resources.
+- **Get general assistance:** Ask questions and get guidance on Google Cloud best practices, architectures, and operations.
 
 ## Quick start
 
 Before you begin, ensure you have the following set up:
 
-- [**Node.js**](https://nodejs.org/en/download) (v20 or later).
-- [**Git**](https://git-scm.com/downloads).
 - [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install) installed and configured.
 - A **Google Cloud project**.
 - The following **IAM roles** on your user account:
@@ -43,31 +48,16 @@ The Gemini Cloud Assist MCP server uses local Application Default Credentials (A
 gcloud auth login
 
 # Set up Application Default Credentials for the server.
-# This allows the MCP server to securely make Google Cloud API calls on your behalf.
 gcloud auth application-default login
 ```
 
-### Step 2: Configure your MCP client
 
-Below is the standard configuration snippet you will use. It tells the client to use `npx` to download and run the latest version of the MCP server on demand. Paste the MCP configuration to an MCP client of your choosing. We recommend using the [Gemini CLI](https://github.com/google-gemini/gemini-cli) for the best experience.
 
-#### MCP config
+## Configure your MCP client
 
-```json
-"mcpServers" : {
-   "GeminiCloudAssist": {
-     "command": "npx",
-     "args": ["-y", "@google-cloud/gemini-cloud-assist-mcp@0.2.0"],
-     "timeout": 600000
-   }
-}
-```
-
-## Setup instructions for MCP clients
+The client-agent configuration depends on which agent you are using.
 
 ### Gemini CLI
-
-#### Option 1 (recommended): Extension installation
 
 Install the MCP server as a [Gemini CLI extension](https://github.com/google-gemini/gemini-cli/blob/main/docs/extension.md):
 
@@ -75,314 +65,101 @@ Install the MCP server as a [Gemini CLI extension](https://github.com/google-gem
 gemini extensions install https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp
 ```
 
-Validate successful installation by running:
+Alternatively, you can manually add the configuration to your **_~/.gemini/settings.json_**:
 
-```shell
-gemini extensions list
+```json
+"mcpServers": {
+  "gemini_cloud_assist": {
+    "httpUrl": "https://geminicloudassist.googleapis.com/mcp",
+    "authProviderType": "google_credentials",
+    "oauth": {
+      "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
+    },
+    "timeout": 600000
+  },
+  "application_design_center": {
+    "httpUrl": "https://designcenter.googleapis.com/mcp",
+    "authProviderType": "google_credentials",
+    "oauth": {
+      "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
+    },
+    "timeout": 600000
+  }
+}
 ```
 
-#### Option 2: Global installation
+### Antigravity
 
-Add the [MCP config](#mcp-config) to the **_\~/.gemini/settings.json_**. This gives you access to MCP Tools in every Gemini CLI session.
+Add the following to your `mcp_config.json`:
 
-#### Option 3: Project-level installation
-
-Add the [MCP config](#mcp-config) to your **_/path/to/project/.gemini/settings.json_** file. This gives you access to the MCP Tools in Gemini CLI sessions created under this project folder only.
+```json
+"mcpServers": {
+  "gemini_cloud_assist": {
+    "serverUrl": "https://geminicloudassist.googleapis.com/mcp",
+    "headers": {},
+    "authProviderType": "google_credentials"
+  },
+  "application_design_center": {
+    "serverUrl": "https://designcenter.googleapis.com/mcp",
+    "headers": {},
+    "authProviderType": "google_credentials"
+  }
+}
+```
 
 ### Cursor
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=GeminiCloudAssist&config=eyJ0aW1lb3V0Ijo2MDAwMDAsImNvbW1hbmQiOiJucHggLXkgQGdvb2dsZS1jbG91ZC9nZW1pbmktY2xvdWQtYXNzaXN0LW1jcEBsYXRlc3QifQ%3D%3D)
+1. In your Google Cloud project, create an OAuth 2.0 client ID for a desktop app.
+2. Configure `URI://anysphere.cursor-mcp/oauth/callback` as the redirect URL.
+3. Add or merge the following configuration block:
 
-### Claude Desktop
-
-- Launch the Claude Desktop application.
-- Navigate to Settings > Developer.
-- Click the Edit config button to open the **claude_desktop_config.json** file.
-- Add the [MCP config](#mcp-config) to the **claude_desktop_config.json** file.
-- Save the file and restart Claude Desktop.
-
-### Claude Code
-
-```shell
-claude mcp add GeminiCloudAssist npx -y @google-cloud/gemini-cloud-assist-mcp@0.2.0
+```json
+{
+  "mcpServers": {
+    "gemini_cloud_assist": {
+      "url": "https://geminicloudassist.googleapis.com/mcp",
+      "auth": {
+        "CLIENT_ID": "${env:OAUTH_CLIENT_ID}",
+        "CLIENT_SECRET": "${env:OAUTH_CLIENT_SECRET}",
+        "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
+      }
+    },
+    "application_design_center": {
+      "url": "https://designcenter.googleapis.com/mcp",
+      "auth": {
+        "CLIENT_ID": "${env:OAUTH_CLIENT_ID}",
+        "CLIENT_SECRET": "${env:OAUTH_CLIENT_SECRET}",
+        "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
+      }
+    }
+  }
+}
 ```
 
-Follow [detailed instructions](https://docs.anthropic.com/en/docs/claude-code/mcp#installing-mcp-servers) on Anthropic's documentation for more information.
-
-### Cline
-
-Update **cline_mcp_settings.json** with the [MCP config](#mcp-config).
-
-Follow [detailed instructions](https://docs.cline.bot/mcp/adding-mcp-servers-from-github) on Cline's website for more information.
-
-## 🛠️ MCP tools
-
-- **`create_investigation`**: Creates a new Gemini Cloud Assist investigation.
-- **`run_investigation`**: Runs an existing Gemini Cloud Assist investigation that you created.
-- **`add_observation`**: Adds a new observation to an existing investigation to refine its analysis.
-- **`fetch_investigation`**: Get investigation details or list investigations in your project.
-
-## Examples
-
-This section shows examples of the tasks you can perform with the Cloud Assist MCP server with the Gemini CLI, including example prompts and responses.
-
-<details>
-<summary>Create and run investigations</summary>
-
-```shell
-Using 1 MCP server (Ctrl+T to view descriptions)
-
-╭───────────────────────────────────────────────────────────────────────────────────╮
-│  > Investigate the pending pods issue in my test-cluster-1 cluster                │
-╰───────────────────────────────────────────────────────────────────────────────────╯
-
-✦ I can help with that. I'll start an investigation into the pending pods issue in
-  your test-cluster-1 cluster. To do that, I'll run a few commands to get the
-  information I need to start the investigation.
- ╭──────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  Shell gcloud config get-value project (Getting the configured GCP project.)   |
- ...                                                                                |
- ...                                                                                |
- ╰──────────────────────────────────────────────────────────────────────────────────╯
-
-✦ I'll now create an investigation into the pending pods issue in your test-cluster-1 GKE cluster.
- ╭──────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  create_investigation (gemini-cloud-assist-mcp MCP Server) create_investigati… │
- │                                                                                  │
- │    ## Gemini Cloud Assist Investigation                                          │
- │                                                                                  │
- │    **Name**: [Gemini CLI] Pending pods in test-cluster-1 GKE cluster             │
- ...                                                                                |
- ...                                                                                |
- ╰──────────────────────────────────────────────────────────────────────────────────╯
-
-✦ I've created the investigation. Now I'll run it to analyze the issue.
- ╭──────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  run_investigation (gemini-cloud-assist-mcp MCP Server) run_investigation (ge… │
- ...                                                                                |
- ...                                                                                |
- ╰──────────────────────────────────────────────────────────────────────────────────╯
-
-✦ The investigation is complete. Here's what I found:
-
-  The main problem is that your GKE cluster `test-cluster-1` is out of resources. It
-  has only one node, and that node is full. This is causing new pods to get stuck in
-  a "pending" state because there's no room for them.
-
-  The investigation also revealed that Node Auto-Provisioning (NAP) is disabled. This
-   is a key feature that allows the cluster to automatically add more nodes when it's
-   running low on resources. Because NAP is disabled, the cluster can't scale up to
-  meet the demand.
-
-  I have two recommendations to fix this:
-   1. Enable Node Auto-Provisioning for the test-cluster-1 cluster. This is the best
-      long-term solution because it will allow the cluster to automatically scale up
-      and down as needed.
-   2. Manually add more nodes to the cluster. This is a good short-term solution that
-       will immediately relieve the resource pressure and allow the pending pods to
-      be scheduled.
-
-  I recommend that you start by enabling Node Auto-Provisioning. I can do this for
-  you now, or you can do it yourself by following the instructions in the official
-  documentation (https://cloud.google.com/kubernetes-engine/docs/how-to/node-auto-pro
-  visioning#enable).
-
-  What would you like to do?
-```
-
-</details>
-
-<details>
-<summary>Dig deeper and iterate on investigations</summary>
-
-```shell
-✦ The investigation is complete. Here's a summary of the findings:
-
-  Primary Cause:
-
-   * Ephemeral Storage Exhaustion: The main reason for the pod crashes is
-     that the GKE nodes are running out of ephemeral storage. This is
-     causing a DiskPressure condition on the nodes, which in turn leads to
-     the kubelet evicting pods to free up space.
-
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │  > Do you know which pod is consuming all the storage space?                      │
- ╰───────────────────────────────────────────────────────────────────────────────────╯
-
-✦ That's a great question. The investigation points to the emptyDir volume
-  in the gke-001-deployment pods. I can check the storage usage
-  inside one of the running pods to confirm this.
-
-  First, I'll list the pods to find one that is currently running.
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  Shell kubectl get pods -n gke-001-namespace (This command will list..          │
- ...                                                                                 |
- ...                                                                                 |
- ╰───────────────────────────────────────────────────────────────────────────────────╯
 
 
-✦ That's unexpected. The /data directory in that pod is only using 4.0K,
-  which is negligible. This contradicts the hypothesis that the emptyDir
-  volume is the primary consumer of ephemeral storage.
+## MCP Tools
 
-  This means something else on the node is consuming the storage. It could
-  be logs, or another process running on the node that isn't immediately
-  obvious.
+Gemini Cloud Assist is an agent accessible through a set of MCP tools. The agent invoked by MCP tool calls makes its own tool calls internally to Google Cloud. The following MCP tools are published for agents to consume:
 
-  To figure this out, I'll need to get a shell on the node itself and
-  investigate the storage usage from there. I'll start by getting an
-  interactive shell on the node
-  gke-001-cluster-gke-001-node-pool-001.
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  Shell gcloud compute ssh gke-001-cluster-gke-001-node-pool-001…                │
- ...                                                                                 |
- ...                                                                                 |
- │    ERROR: (gcloud.compute.ssh) [/usr/local/bin/ssh] exited                        │
- │    with return code [255].                                                        |
- ╰───────────────────────────────────────────────────────────────────────────────────╯
+| Tool | Description |
+| :--- | :--- |
+| **[`ask_cloud_assist`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/ask_cloud_assist)** | The primary interface for Google Cloud assistance and for the Gemini Cloud Assist agent. All functionality is accessible through this tool. |
+| **[`design_infra`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/design_infra)** | Supports workflows for designing and architecting infrastructure on Google Cloud. |
+| **[`investigate_issue`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/investigate_issue)** | Supports workflows for troubleshooting in Google Cloud. Can do quick troubleshooting or deeper troubleshooting through an Investigation resource. |
+| **[`invoke_operation`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/invoke_operation)** | Supports workflows for creating, updating, and deleting resources in Google Cloud. Only functional when Agent Actions are enabled. |
+| **[`optimize_costs`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/optimize_costs)** | Supports workflows for analyzing, tracking, and optimizing Google Cloud costs. Provides breakdowns of spend and identifies opportunities for cost efficiency. |
 
-✦ It seems I can't directly SSH into the node. This is likely due to
-  firewall rules or the node not having an external IP address.
+> **Note:** These tools should not be treated as stable APIs. Parameters might be renamed or modified to account for the evolving capabilities of Gemini Cloud Assist.
 
-  However, I can still investigate the node's storage. I'll add an
-  observation to the investigation, noting that the emptyDir volume is not
-  the cause of the storage issue, and then re-run the investigation. This
-  will allow Gemini to analyze the node's logs and other signals to
-  pinpoint the true source of the storage consumption.
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  add_observation (gemini-cloud-assist MCP Server) {"observation":"Fu…           │
- │                                                                                   │
- │    ## Gemini Cloud Assist Investigation                                           │
- │                                                                                   │
- │    **Name**: [Gemini CLI] GKE pods crashing due to ephemeral storage issues       │
- ...                                                                                 |
- ...                                                                                 |
- ╰───────────────────────────────────────────────────────────────────────────────────╯
+## Agent Skills
 
-✦ I've added the new information to the investigation. Now I'll re-run the
-  analysis. This will take the new observation into account and should help
-  us identify the real source of the storage consumption.
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  run_investigation (gemini-cloud-assist MCP Server) {"investigationI…           │
- │                                                                                   │
- ...                                                                                 |
- ...                                                                                 |
- ╰───────────────────────────────────────────────────────────────────────────────────╯
+The Gemini Cloud Assist MCP tools leverage `SKILL.md` files to instruct your agent on how to properly use the tools. The skills help to guide your agent on chaining together multiple tools into a workstream, passing relevant local information to Gemini Cloud Assist, and enabling explicit invocation.
 
-
-✦ The new investigation results are in.
-
-  Key Findings:
-
-   * `emptyDir` Ruled Out: The investigation confirms our finding that the
-     emptyDir volume is not the cause of the storage pressure.
-   * Container Logs are the Likely Culprit: The analysis strongly suggests
-     that the ephemeral storage is being consumed by container logs. The
-     kubelet is failing to reopen log files due to "no space left on
-     device," which is a clear indicator of this issue.
-   * Another Deployment is Implicated: The investigation also points to
-     another deployment, gke-002-deployment, as a potential source of the
-     problem. The logs mention that this deployment is "configured to fill
-     up disk."
-```
-
-</details>
-
-<details>
-<summary>Search and analyze Cloud resources </summary>
-
-```shell
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │  > Give me an overview of my GKE node pools. For each one, show me its            │
- │    cluster and MIGs                                                               │
- ╰───────────────────────────────────────────────────────────────────────────────────╯
-
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  search_and_analyze_gcp_resources (gemini-cloud-assist-mcp MCP Server) s…       │
- │                                                                                   │
- │    Based on the output of the `container.googleapis.com` API                      │
- │    calls, here is an overview of your GKE node pools, including                   │
- │    their associated clusters and Managed Instance Groups (MIGs):                  │
- │                                                                                   │
- │    *   **Cluster: `cluster-1` (Zone: `us-central1-a`)**                           │
- │        *   **Node Pool:** `default-pool`                                          │
- │            *   **Machine Type:** `custom-1-3840`                                  │
- │            *   **Initial Node Count:** 3                                          │
- │            *   **Autoscaling:** Enabled (min: 1, max: 5)                          │
- │            *   **MIGs:**  `gke-cluster-1-default-pool-001-grp`                    │
- │                                                                                   │
- │    *   **Cluster: `anthos-cluster-1` (Zone: `us-central1-c`)**                    |
- │        *   **Node Pool:** `default-pool`                                          │
- │            *   **Machine Type:** `e2-standard-2`                                  │
- │            *   **Initial Node Count:** 3                                          │
- │            *   **Autoscaling:** Enabled (min: 2, max: 3)                          │
- │            *   **MIGs:** `gke-anthos-cluster-default-pool-001-grp`                |
- │                                                                                   │
- │    *   **Cluster: `cluster-2` (Zone: `us-central1-c`)**                           │
- │        *   **Node Pool:** `default-pool-1`                                        │
- │            *   **Machine Type:** `e2-micro`                                       │
- │            *   **Initial Node Count:** 3                                          │
- │            *   **Autoscaling:** Enabled (max: 5)                                  │
- │            *   **MIGs:**  `gke-cluster-2-default-pool-001-grp`                    │
- ╰───────────────────────────────────────────────────────────────────────────────────╯
-✦ OK. Here's an overview of your GKE node pools, their clusters, and MIGs. Is
-  there anything else I can help you with?
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │  > Tell me details about each MIG                                                 │
- ╰───────────────────────────────────────────────────────────────────────────────────╯
-
- ╭───────────────────────────────────────────────────────────────────────────────────╮
- │ ✔  search_and_analyze_gcp_resources (gemini-cloud-assist-mcp MCP Server) s…       │
- │                                                                                   │
- │    I found the following details for the requested Managed                        │
- │    Instance Groups (MIGs):                                                        │
- │                                                                                   │
- │    *   **gke-cluster-1-default-pool-001-grp**:                                    │
- │        *   **Region/Zone**: us-central1-a                                         │
- │        *   **Creation Timestamp**: 2024-03-25T13:57:25.588-07:00                  │
- │        *   **Current Actions**: 2 instances with no current                       │
- │    action                                                                         │
- │        *   **Target Size**: 2                                                     │
- │        *   **Status**: Stable                                                     │
- │        *   **Instance Template**:                                                 │
- │    `gke-cluster-1-default-pool-001`                                               │
- │        *   **Update Policy**: Opportunistic, minimal action                       │
- │    REPLACE, max surge 1, max unavailable 1                                        │
- │                                                                                   │
- │    *   **gke-anthos-cluster-default-pool-001-grp**:                               │
- │        *   **Region/Zone**: us-central1-c                                         │
- │        *   **Creation Timestamp**: 2024-04-03T09:09:32.058-07:00                  │
- │        *   **Current Actions**: 2 instances with no current                       │
- │    action                                                                         │
- │        *   **Target Size**: 2                                                     │
- │        *   **Status**: Stable                                                     │
- │        *   **Instance Template**:                                                 │
- │    `gke-anthos-cluster-default-pool-001`                                          │
- │        *   **Update Policy**: Opportunistic, minimal action                       │
- │    REPLACE, max surge 1, max unavailable 1                                        │
- │        *   **Named Ports**: http (port 3337)                                      │
- │                                                                                   │
- │    *   **gke-cluster-2-default-pool-001-grp**:                                    │
- │        *   **Region/Zone**: us-central1-c                                         │
- │        *   **Creation Timestamp**: 2024-11-13T21:46:01.072-08:00                  │
- │        *   **Current Actions**: 5 instances with no current                       │
- │    action                                                                         │
- │        *   **Target Size**: 5                                                     │
- │        *   **Status**: Stable                                                     │
- │        *   **Instance Template**:                                                 │
- │    `gke-cluster-2-default-pool-001`                                               │
- │        *   **Update Policy**: Opportunistic, minimal action                       │
- │    REPLACE, max surge 1, max unavailable 1                                        │
- │                                                                                   │
- │    These details were retrieved by calling the Compute Engine                     │
- │    API's `instanceGroupManagers.get` and                                          │
- │    `instanceGroupManagers.aggregatedList` methods.                                │
- ╰───────────────────────────────────────────────────────────────────────────────────╯
-✦ Here are the details for each MIG. Let me know if you need anything else.
-
-```
-
-</details>
+| Skill | Description |
+| :--- | :--- |
+| **`designing-and-deploying-infrastructure`** | Guides the agent on how to design, assess, deploy, and troubleshoot cloud infrastructure using the Application Design Center (ADC) and Gemini Cloud Assist tools. |
+| **`operating-google-cloud`** | Provides instructions for managing Google Cloud Platform (GCP) resources and Kubernetes using specialized MCP tools. |
 
 ## **Contributing**
 
