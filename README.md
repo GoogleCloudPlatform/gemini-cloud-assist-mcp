@@ -139,8 +139,6 @@ Add the following to your `mcp_config.json`:
 Follow the configuration instructions for your specific application:
 
 - [Claude.ai](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#claude-ai)
-- [Claude Code](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#claude-code)
-- [Claude Desktop](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#Claude%20Desktop)
 
 ## MCP Tools
 
