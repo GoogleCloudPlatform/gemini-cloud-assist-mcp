@@ -51,8 +51,6 @@ gcloud auth login
 gcloud auth application-default login
 ```
 
-
-
 ## Configure your MCP client
 
 The client-agent configuration depends on which agent you are using.
@@ -136,19 +134,45 @@ Add the following to your `mcp_config.json`:
 }
 ```
 
+### Claude.ai
 
+Follow the instructions documented in the following [section](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#claude-ai)
+
+### Claude Code
+
+Follow the instructions documented in the following [section](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#claude-code)
+
+### Claude Desktop
+
+Follow the instructions documented in the following [section](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#Claude%20Desktop)
 
 ## MCP Tools
 
-Gemini Cloud Assist is an agent accessible through a set of MCP tools. The agent invoked by MCP tool calls makes its own tool calls internally to Google Cloud. The following MCP tools are published for agents to consume:
+### Gemini Cloud Assist MCP tools
+
+Gemini Cloud Assist is an agent accessible through a set of MCP tools. The agent invoked by MCP tool calls makes its own tool calls internally to Google Cloud. The following [MCP tools](https://docs.cloud.google.com/gemini/docs/geminicloudassist/reference/mcp) are published for agents to consume:
 
 | Tool | Description |
 | :--- | :--- |
-| **[`ask_cloud_assist`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/ask_cloud_assist)** | The primary interface for Google Cloud assistance and for the Gemini Cloud Assist agent. All functionality is accessible through this tool. |
-| **[`design_infra`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/design_infra)** | Supports workflows for designing and architecting infrastructure on Google Cloud. |
-| **[`investigate_issue`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/investigate_issue)** | Supports workflows for troubleshooting in Google Cloud. Can do quick troubleshooting or deeper troubleshooting through an Investigation resource. |
-| **[`invoke_operation`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/invoke_operation)** | Supports workflows for creating, updating, and deleting resources in Google Cloud. Only functional when Agent Actions are enabled. |
-| **[`optimize_costs`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/optimize_costs)** | Supports workflows for analyzing, tracking, and optimizing Google Cloud costs. Provides breakdowns of spend and identifies opportunities for cost efficiency. |
+| **`ask_cloud_assist`** | The primary interface for Google Cloud assistance and for the Gemini Cloud Assist agent. All functionality is accessible through this tool. |
+| **`design_infra`** | Supports workflows for designing and architecting infrastructure on Google Cloud. It works with Application Design Center MCP Server tools to manage the infrastructure design lifecycle. |
+| **`investigate_issue`** | Supports workflows for troubleshooting in Google Cloud. Can do quick troubleshooting or deeper troubleshooting through an Investigation resource. |
+| **`invoke_operation`** | Supports workflows for creating, updating, and deleting resources in Google Cloud. Only functional when Agent Actions are enabled. |
+| **`optimize_costs`** | Supports workflows for analyzing, tracking, and optimizing Google Cloud costs. Provides breakdowns of spend and identifies opportunities for cost efficiency. |
+
+### Application Design Center MCP tools
+
+[Application Design Center MCP](https://docs.cloud.google.com/application-design-center/docs/use-app-design-center-mcp) tools, often orchestrated by GCA’s design_infra tool, manages the infrastructure application lifecycle using Application Design Center, including template management, security compliance and remediation and deployment. 
+
+| Tool | Description |
+| :--- | :--- |
+| **`setup_adc`** | Initializes the Application Design Center environment. This is a one-time setup step that must be performed before other ADC tools can be used. |
+| **`manage_application`** | Manages the deployment lifecycle of an application. Use this tool to deploy a verified design using the Application Design Center or retrieve the status and details of an existing deployment. This is the final step that turns your design into a deployed infrastructure on Google Cloud. |
+| **`manage_application_template`** | Manages the Infrastructure as Code (IaC) content of your infrastructure design. Use this to save the design as an Application Design Center template, export the design as Terraform files, or update the design (e.g. component,  parameters configurations etc). |
+| **`assess_best_practices`** | Performs a comprehensive security and configuration audit on your application design before deployment. It validates the design against Security Command Center frameworks and relevant controls, returning a report with actionable findings for remediation. |
+| **`list_application_templates`** | Lists all available application designs. |
+
+
 
 > **Note:** These tools should not be treated as stable APIs. Parameters might be renamed or modified to account for the evolving capabilities of Gemini Cloud Assist.
 
