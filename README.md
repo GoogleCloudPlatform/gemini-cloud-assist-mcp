@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/googlecloudplatform-gemini-cloud-assist-mcp-badge.png)](https://mseep.ai/app/googlecloudplatform-gemini-cloud-assist-mcp)
+
 # Gemini Cloud Assist MCP server
 
 > [!IMPORTANT]
