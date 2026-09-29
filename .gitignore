@@ -10,4 +10,5 @@ api.integration.local.js
 install.sh
 raw_logs/*
 .gemini/
+.jetskicli/
 gha-creds-*.json
