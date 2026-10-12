@@ -7,7 +7,7 @@ dist/*
 # Local files
 personal-docs/*
 api.integration.local.js
-install.sh
+/install.sh
 raw_logs/*
 .gemini/
 .jetskicli/

@@ -109,6 +109,23 @@ Follow the configuration instructions for your specific application:
 
 - [Claude.ai](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#claude-ai)
 
+#### Claude Code: AutoCloud plugin
+
+For Claude Code, use the [`autocloud`](plugins/cloud-operator/claude/README.md)
+plugin. It routes Google Cloud requests to the Operator Agent through
+`ask_cloud_operator`, and registers the MCP server with your own OAuth client
+and a 30-minute tool timeout, so long-running agent work isn't cut off.
+
+Install it:
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/main/plugins/cloud-operator/claude/install.sh | bash
+```
+
+Then run `/autocloud:setup` in Claude Code. It walks you through creating the
+OAuth client, registering the server and signing in. See the plugin's README
+for other ways to install it, and for onboarding.
+
 ## MCP Tools
 
 ### Gemini Cloud Assist MCP tools
