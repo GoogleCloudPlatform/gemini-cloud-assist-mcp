@@ -158,6 +158,7 @@ Gemini Cloud Assist is an agent accessible through a set of MCP tools. The agent
 | **[`investigate_issue`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/investigate_issue)** | Supports workflows for troubleshooting in Google Cloud. Can do quick troubleshooting or deeper troubleshooting through an Investigation resource. |
 | **[`invoke_operation`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/invoke_operation)** | Supports workflows for creating, updating, and deleting resources in Google Cloud. Only functional when Agent Actions are enabled. |
 | **[`optimize_costs`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/optimize_costs)** | Supports workflows for analyzing, tracking, and optimizing Google Cloud costs. Provides breakdowns of spend and identifies opportunities for cost efficiency. |
+| **`ask_cloud_operator`** | Delegates multi-step operational work to the Cloud Operator agent: incident and root-cause investigation, rollout review, cost optimization, Terraform best-practices review and generation, and documentation-grounded how-to answers. **Private Preview**, restricted to allowlisted projects. |
 
 ### Application Design Center MCP tools
 
@@ -180,6 +181,7 @@ The Gemini Cloud Assist MCP tools leverage `SKILL.md` files to instruct your age
 
 | Skill | Description |
 | :--- | :--- |
+| **`autocloud-operator`** | Delegates Google Cloud operations to the Cloud Operator agent (`ask_cloud_operator`): incident investigation, rollout review, cost optimization, Terraform review and generation, and how-to questions, with Terraform results applied as reviewable file edits. Requires Private Preview access. |
 | **`designing-and-deploying-infrastructure`** | Guides the agent on how to design, assess, deploy, and troubleshoot cloud infrastructure using the Application Design Center (ADC) and Gemini Cloud Assist tools. |
 | **`operating-google-cloud`** | Provides instructions for managing Google Cloud Platform (GCP) resources and Kubernetes using specialized MCP tools. |
 
