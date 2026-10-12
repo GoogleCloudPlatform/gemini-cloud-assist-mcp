@@ -103,6 +103,25 @@ Add the following to your `mcp_config.json`:
 }
 ```
 
+### Codex: AutoCloud plugin
+
+For Codex (the ChatGPT desktop app and the Codex CLI on macOS), use the
+[`autocloud`](plugins/cloud-operator/codex/README.md) plugin. It routes Google
+Cloud requests to the Operator Agent through `ask_cloud_operator`, and
+registers the MCP server with your own OAuth client and a 30-minute tool
+timeout, so long-running agent work isn't cut off.
+
+Install it:
+
+```shell
+git clone https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp.git
+bash gemini-cloud-assist-mcp/plugins/cloud-operator/codex/install.sh
+```
+
+Then restart Codex and ask "Set up AutoCloud". It asks for your operator
+agent's project and agent, walks you through the OAuth client, and registers
+the server and signs you in. See the plugin's README for details.
+
 ### Claude
 
 Follow the configuration instructions for your specific application:
