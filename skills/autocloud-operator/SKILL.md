@@ -1,9 +1,9 @@
 ---
-name: operator
+name: autocloud-operator
 description: "Google Cloud (GCP) assistant and operator via the autocloud ask_cloud_operator MCP tool. Use for any GCP request: how-to/why, gcloud or Terraform syntax, architecture design, managing resources, Terraform/Kubernetes/Helm, rollouts, incidents, costs. Invoke it before answering a GCP question or designing GCP infrastructure from your own knowledge. When asked to review, fix, or remediate local GCP IaC or config files (*.tf, Kubernetes YAML), invoke it before reading or editing them yourself."
 ---
 
-# Cloud Operator (autocloud)
+# Cloud Operator
 
 Delegate GCP work (questions, design, Terraform/Kubernetes/Helm generation and review, resource management, rollouts, incidents, costs) to the **Cloud Operator Agent** via `ask_cloud_operator` on the `autocloud` MCP server. Keep using it for GCP follow-ups in the same conversation.
 
@@ -17,7 +17,7 @@ Make one call per logical request. Calls can run for up to **30 minutes**: don't
 
 - `project`: `projects/<project_id>`, resolved from the project named by the user, then the default in the user's GCP preferences, then `gcloud config get-value project`. If still unknown (empty or `(unset)`), ask.
 - `userQuery`: the user's prompt **as-is**, followed by:
-  - on the first call of a conversation (no `contextId`), the user's full GCP preferences under a `User preferences:` heading (from a `<gcp_preferences>` block in context, or `~/.config/autocloud/preferences.md` if it exists), then the line `Also apply my saved preferences from your memory.`;
+  - on the first call of a conversation (no `contextId`), the user's full GCP preferences under a `User preferences:` heading (from a `<gcp_preferences>` block in context, or `~/.config/cloud-operator/preferences.md` if it exists), then the line `Also apply my saved preferences from your memory.`;
   - the **complete, verbatim contents** of every referenced local file, diff, or error log, each under a heading with its path. The operator cannot see the local filesystem, so never summarize, abbreviate, or truncate them.
   - **Secrets exception**: never send credential files (`.env`, service-account key JSON, kubeconfig, `*.tfstate`) or secret values. Replace passwords, tokens, API keys, and private keys with `<REDACTED>` (for `.env`/`*.tfvars`, send variable names with redacted values), and tell the user you did.
   - external doc links as-is (don't fetch them yourself).
@@ -34,4 +34,4 @@ Make one call per logical request. Calls can run for up to **30 minutes**: don't
 ## Keep the user in control
 
 - Relay the operator's results accurately: what was done, what was found, resource links. Don't claim actions it didn't report.
-- If the user states a lasting preference ("always use us-east1"), tell the operator via `ask_cloud_operator` ("Remember this preference for future sessions: …") so its memory has it, and offer to also save it locally (with the client's autocloud preferences command if it has one, e.g. `/autocloud:preferences`; otherwise in `~/.config/autocloud/preferences.md`).
+- If the user states a lasting preference ("always use us-east1"), tell the operator via `ask_cloud_operator` ("Remember this preference for future sessions: …") so its memory has it, and offer to also save it locally (with the client's Cloud Operator preferences command if it has one, e.g. `/cloud-operator:preferences`; otherwise in `~/.config/cloud-operator/preferences.md`).

@@ -58,7 +58,7 @@ The client-agent configuration depends on which agent you are using.
 ### Cloud Operator plugin: Claude Code, ChatGPT Codex and Google Antigravity
 
 The Cloud Operator plugin (in `plugins/cloud-operator`; it installs as
-`autocloud`, so its commands are `/autocloud:…`) connects Claude Code, ChatGPT
+`cloud-operator`, so its commands are `/cloud-operator:…`) connects Claude Code, ChatGPT
 Codex or Google Antigravity to Cloud Operator (`ask_cloud_operator`). It:
 
 - sets up the MCP connection to Cloud Operator, with a 30-minute tool timeout;
