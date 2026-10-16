@@ -1,0 +1,27 @@
+{
+  "name": "cloud-operator",
+  "displayName": "Cloud Operator",
+  "version": "0.0.1",
+  "description": "Routes Google Cloud requests from Antigravity to the Gemini Cloud Assist Operator Agent through the hosted ask_cloud_operator MCP tool, allows 30-minute operator runs, and sends your saved GCP operating preferences with each new operator session.",
+  "author": {
+    "name": "Google LLC"
+  },
+  "homepage": "https://cloud.google.com/gemini/docs/cloud-assist/",
+  "repository": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp",
+  "license": "Apache-2.0",
+  "keywords": [
+    "google-cloud",
+    "gcp",
+    "gemini-cloud-assist",
+    "cloud-operator",
+    "sre",
+    "troubleshooting",
+    "operations",
+    "infrastructure"
+  ],
+  "suggestedPrompts": [
+    "Run /cloud-operator:setup to check the Cloud Operator connection",
+    "Why is my GKE deployment crash-looping?",
+    "Where is this project's spend going?"
+  ]
+}

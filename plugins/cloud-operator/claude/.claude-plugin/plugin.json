@@ -1,0 +1,8 @@
+{
+  "name": "cloud-operator",
+  "displayName": "Cloud Operator",
+  "version": "0.0.1",
+  "description": "Operate GCP infrastructure through the Gemini Cloud Assist `ask_cloud_operator` MCP tool. Guides Cloud Console OAuth setup, registers the MCP server with a 30-minute tool timeout, and bootstraps your GCP operating preferences.",
+  "author": { "name": "Google LLC" },
+  "keywords": ["google-cloud", "gcp", "gemini-cloud-assist", "cloud-operator", "sre", "troubleshooting", "operations", "infrastructure"]
+}

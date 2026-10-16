@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "autocloud": {
+      "serverUrl": "https://geminicloudassist.googleapis.com/mcp/autocloud",
+      "authProviderType": "google_credentials",
+      "timeoutSeconds": 1800,
+      "enabledTools": [
+        "ask_cloud_operator",
+        "search_operator_sessions",
+        "fetch_operator_session"
+      ]
+    }
+  }
+}

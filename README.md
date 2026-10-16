@@ -16,6 +16,8 @@
 
 This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients to the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference). It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment directly from the local command line.
 
+The configurations in this repository connect to the Cloud Operator endpoint, `https://geminicloudassist.googleapis.com/mcp/autocloud`, which serves the Cloud Operator tools (`ask_cloud_operator`, `search_operator_sessions`, `fetch_operator_session`). The other Gemini Cloud Assist tools listed in the [reference documentation](https://docs.cloud.google.com/gemini/docs/geminicloudassist/reference/mcp) stay on `https://geminicloudassist.googleapis.com/mcp` and are not reachable through these configurations.
+
 > [!NOTE]
 > The **Google Cloud Platform Terms of Service** (available at https://cloud.google.com/terms/) and the **Data Processing and Security Terms** (available at https://cloud.google.com/terms/data-processing-terms) do not apply to any component of the Gemini Cloud Assist MCP Server software.
 
@@ -23,11 +25,13 @@ To learn more about Gemini Cloud Assist, see the [Gemini Cloud Assist overview](
 
 ## ✨ Key features
 
-- **Design infrastructure:** Create and architect infrastructure configurations for Google Cloud.
-- **Troubleshoot issues:** Run deep investigations to find the root cause of complex issues in your Google Cloud environment.
-- **Manage resources:** Create, update, and delete Google Cloud resources directly from your chat workflow (requires Agent Actions).
-- **Optimize costs:** Analyze your spend, track costs, and identify opportunities for efficiency such as idle resources.
-- **Get general assistance:** Ask questions and get guidance on Google Cloud best practices, architectures, and operations.
+Cloud Operator is an operator agent with live project context. Through `ask_cloud_operator` it handles:
+
+- **Troubleshoot issues:** Incident and root-cause investigation in your Google Cloud environment.
+- **Review rollouts:** Rollout readiness and monitoring review.
+- **Design and review infrastructure:** Terraform best-practices review and generation, Kubernetes and Helm manifests, with results applied as reviewable file edits.
+- **Optimize costs:** Analyze your spend and identify opportunities for efficiency.
+- **Get general assistance:** Documentation-grounded how-to answers and guidance on Google Cloud best practices, architectures, and operations.
 
 ## Quick start
 
@@ -77,12 +81,7 @@ Add the following to your `mcp_config.json`:
 ```json
 "mcpServers": {
   "gemini_cloud_assist": {
-    "serverUrl": "https://geminicloudassist.googleapis.com/mcp",
-    "headers": {},
-    "authProviderType": "google_credentials"
-  },
-  "application_design_center": {
-    "serverUrl": "https://designcenter.googleapis.com/mcp",
+    "serverUrl": "https://geminicloudassist.googleapis.com/mcp/autocloud",
     "headers": {},
     "authProviderType": "google_credentials"
   }
@@ -99,15 +98,7 @@ Add the following to your `mcp_config.json`:
 {
   "mcpServers": {
     "gemini_cloud_assist": {
-      "url": "https://geminicloudassist.googleapis.com/mcp",
-      "auth": {
-        "CLIENT_ID": "${env:OAUTH_CLIENT_ID}",
-        "CLIENT_SECRET": "${env:OAUTH_CLIENT_SECRET}",
-        "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
-      }
-    },
-    "application_design_center": {
-      "url": "https://designcenter.googleapis.com/mcp",
+      "url": "https://geminicloudassist.googleapis.com/mcp/autocloud",
       "auth": {
         "CLIENT_ID": "${env:OAUTH_CLIENT_ID}",
         "CLIENT_SECRET": "${env:OAUTH_CLIENT_SECRET}",
@@ -127,43 +118,27 @@ Follow the configuration instructions for your specific application:
 
 ## MCP Tools
 
-### Gemini Cloud Assist MCP tools
+### Cloud Operator MCP tools
 
-Gemini Cloud Assist is an agent accessible through a set of MCP tools. The agent invoked by MCP tool calls makes its own tool calls internally to Google Cloud. The following [MCP tools](https://docs.cloud.google.com/gemini/docs/geminicloudassist/reference/mcp) are published for agents to consume:
-
-| Tool | Description |
-| :--- | :--- |
-| **[`ask_cloud_assist`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/ask_cloud_assist)** | The primary interface for Google Cloud assistance and for the Gemini Cloud Assist agent. All functionality is accessible through this tool. |
-| **[`design_infra`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/design_infra)** | Supports workflows for designing and architecting infrastructure on Google Cloud. |
-| **[`investigate_issue`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/investigate_issue)** | Supports workflows for troubleshooting in Google Cloud. Can do quick troubleshooting or deeper troubleshooting through an Investigation resource. |
-| **[`invoke_operation`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/invoke_operation)** | Supports workflows for creating, updating, and deleting resources in Google Cloud. Only functional when Agent Actions are enabled. |
-| **[`optimize_costs`](https://cloud.google.com/gemini/docs/geminicloudassist/reference/mcp/tools_list/optimize_costs)** | Supports workflows for analyzing, tracking, and optimizing Google Cloud costs. Provides breakdowns of spend and identifies opportunities for cost efficiency. |
-| **`ask_cloud_operator`** | Delegates multi-step operational work to the Cloud Operator agent: incident and root-cause investigation, rollout review, cost optimization, Terraform best-practices review and generation, and documentation-grounded how-to answers. **Private Preview**, restricted to allowlisted projects. |
-
-### Application Design Center MCP tools
-
-[Application Design Center MCP](https://docs.cloud.google.com/application-design-center/docs/use-app-design-center-mcp) tools, often orchestrated by GCA’s design_infra tool, manages the infrastructure application lifecycle using Application Design Center, including template management, security compliance and remediation and deployment. 
+Cloud Operator is an agent accessible through a set of MCP tools. The agent invoked by MCP tool calls makes its own tool calls internally to Google Cloud. The `/mcp/autocloud` endpoint serves the following tools. They are in **Private Preview** and restricted to allowlisted projects.
 
 | Tool | Description |
 | :--- | :--- |
-| **`setup_adc`** | Initializes the Application Design Center environment. This is a one-time setup step that must be performed before other ADC tools can be used. |
-| **`manage_application`** | Manages the deployment lifecycle of an application. Use this tool to deploy a verified design using the Application Design Center or retrieve the status and details of an existing deployment. This is the final step that turns your design into a deployed infrastructure on Google Cloud. |
-| **`manage_application_template`** | Manages the Infrastructure as Code (IaC) content of your infrastructure design. Use this to save the design as an Application Design Center template, export the design as Terraform files, or update the design (e.g. component,  parameters configurations etc). |
-| **`assess_best_practices`** | Performs a comprehensive security and configuration audit on your application design before deployment. It validates the design against Security Command Center frameworks and relevant controls, returning a report with actionable findings for remediation. |
-| **`list_application_templates`** | Lists all available application designs. |
+| **`ask_cloud_operator`** | Delegates multi-step operational work to the Cloud Operator agent: incident and root-cause investigation, rollout review, cost optimization, Terraform best-practices review and generation, and documentation-grounded how-to answers. Returns a `contextId` that continues the session on follow-up calls. |
+| **`search_operator_sessions`** | Lists your Cloud Operator sessions in a project. Each session's `contextId` names the operator agent that served it. |
+| **`fetch_operator_session`** | Fetches a Cloud Operator session by its `contextId`, including its turns. |
 
+The other Gemini Cloud Assist tools (`ask_cloud_assist`, `design_infra`, `investigate_issue`, `invoke_operation`, `optimize_costs`) are served by `https://geminicloudassist.googleapis.com/mcp` and are documented in the [Gemini Cloud Assist MCP reference](https://docs.cloud.google.com/gemini/docs/geminicloudassist/reference/mcp). They are not available through the configurations in this repository.
 
 > **Note:** These tools should not be treated as stable APIs. Parameters might be renamed or modified to account for the evolving capabilities of Gemini Cloud Assist.
 
 ## Agent Skills
 
-The Gemini Cloud Assist MCP tools leverage `SKILL.md` files to instruct your agent on how to properly use the tools. The skills help to guide your agent on chaining together multiple tools into a workstream, passing relevant local information to Gemini Cloud Assist, and enabling explicit invocation.
+The Gemini Cloud Assist MCP tools leverage `SKILL.md` files to instruct your agent on how to properly use the tools. The skills help to guide your agent on when to delegate to Cloud Operator, passing relevant local information to it, and enabling explicit invocation.
 
 | Skill | Description |
 | :--- | :--- |
 | **`autocloud-operator`** | Delegates Google Cloud operations to the Cloud Operator agent (`ask_cloud_operator`): incident investigation, rollout review, cost optimization, Terraform review and generation, and how-to questions, with Terraform results applied as reviewable file edits. Requires Private Preview access. |
-| **`designing-and-deploying-infrastructure`** | Guides the agent on how to design, assess, deploy, and troubleshoot cloud infrastructure using the Application Design Center (ADC) and Gemini Cloud Assist tools. |
-| **`operating-google-cloud`** | Provides instructions for managing Google Cloud Platform (GCP) resources and Kubernetes using specialized MCP tools. |
 
 ## **Contributing**
 
