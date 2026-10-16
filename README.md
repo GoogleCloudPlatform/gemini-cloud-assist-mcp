@@ -55,6 +55,21 @@ gcloud auth application-default login
 
 The client-agent configuration depends on which agent you are using.
 
+### Cloud Operator plugin: Claude Code, ChatGPT Codex and Google Antigravity
+
+The Cloud Operator plugin (in `plugins/cloud-operator`; it installs as
+`autocloud`, so its commands are `/autocloud:…`) connects Claude Code, ChatGPT
+Codex or Google Antigravity to Cloud Operator (`ask_cloud_operator`). It:
+
+- sets up the MCP connection to Cloud Operator, with a 30-minute tool timeout;
+- asks which operator agent to use and checks it answers;
+- saves your Google Cloud preferences and passes them to Cloud Operator;
+- adds a skill that helps your agent decide when and how to use Cloud Operator.
+
+To install it, see [`plugins/cloud-operator`](plugins/cloud-operator/README.md).
+In these agents, the plugin replaces the `gemini-cloud-assist-mcp` plugin at the
+root of this repository, so don't install both.
+
 ### Antigravity
 
 Add the following to your `mcp_config.json`:
@@ -103,47 +118,12 @@ Add the following to your `mcp_config.json`:
 }
 ```
 
-### Codex: AutoCloud plugin
-
-For Codex (the ChatGPT desktop app and the Codex CLI on macOS), use the
-[`autocloud`](plugins/cloud-operator/codex/README.md) plugin. It routes Google
-Cloud requests to the Operator Agent through `ask_cloud_operator`, and
-registers the MCP server with your own OAuth client and a 30-minute tool
-timeout, so long-running agent work isn't cut off.
-
-Install it:
-
-```shell
-git clone https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp.git
-bash gemini-cloud-assist-mcp/plugins/cloud-operator/codex/install.sh
-```
-
-Then restart Codex and ask "Set up AutoCloud". It asks for your operator
-agent's project and agent, walks you through the OAuth client, and registers
-the server and signs you in. See the plugin's README for details.
-
 ### Claude
 
 Follow the configuration instructions for your specific application:
 
 - [Claude.ai](https://docs.cloud.google.com/mcp/configure-mcp-ai-application#claude-ai)
-
-#### Claude Code: AutoCloud plugin
-
-For Claude Code, use the [`autocloud`](plugins/cloud-operator/claude/README.md)
-plugin. It routes Google Cloud requests to the Operator Agent through
-`ask_cloud_operator`, and registers the MCP server with your own OAuth client
-and a 30-minute tool timeout, so long-running agent work isn't cut off.
-
-Install it:
-
-```shell
-curl -fsSL https://raw.githubusercontent.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/main/plugins/cloud-operator/claude/install.sh | bash
-```
-
-Then run `/autocloud:setup` in Claude Code. It walks you through creating the
-OAuth client, registering the server and signing in. See the plugin's README
-for other ways to install it, and for onboarding.
+- Claude Code: see [Cloud Operator plugin](#cloud-operator-plugin-claude-code-chatgpt-codex-and-google-antigravity).
 
 ## MCP Tools
 
