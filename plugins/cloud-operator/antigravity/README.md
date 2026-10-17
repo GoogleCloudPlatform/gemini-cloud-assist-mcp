@@ -9,7 +9,8 @@ monitoring, incident debugging and FinOps. Antigravity counterpart of the
 Claude Code and Codex plugins; see [../README.md](../README.md) for the shared
 layout.
 
-> **Private Preview.** The remote MCP server is in private preview.
+> [!IMPORTANT]
+> **Private Preview.** Cloud Operator and its MCP server are in Private Preview.
 
 ## What it does
 

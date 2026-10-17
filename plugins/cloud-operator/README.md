@@ -4,6 +4,9 @@ Client plugins for **Cloud Operator**, the Gemini Cloud Assist operator agent:
 thin clients that route Google Cloud requests from an AI coding tool to the
 hosted `ask_cloud_operator` MCP tool.
 
+> [!IMPORTANT]
+> **Private Preview.** Cloud Operator and its MCP server are in Private Preview.
+
 ## Install
 
 You need access to Cloud Operator: an operator agent and
@@ -108,5 +111,5 @@ and the two would compete for the same requests. Both connect to
 ## Adding a client
 
 Create `plugins/cloud-operator/<client>/` with the client's manifest,
-installer, sign-in setup, and any client-specific commands, skills and hooks,
+installer, sign-in setup, and any client-specific commands and skills,
 following the packaging steps above. Describe it in the client's `README.md`.

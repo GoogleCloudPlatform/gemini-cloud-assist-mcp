@@ -61,6 +61,9 @@ The client-agent configuration depends on which agent you are using.
 
 ### Cloud Operator plugin: Claude Code, ChatGPT Codex and Google Antigravity
 
+> [!IMPORTANT]
+> **Private Preview.** Cloud Operator and its MCP server are in Private Preview.
+
 The Cloud Operator plugin (in `plugins/cloud-operator`; it installs as
 `cloud-operator`, so its commands are `/cloud-operator:…`) connects Claude Code, ChatGPT
 Codex or Google Antigravity to Cloud Operator (`ask_cloud_operator`). It:

@@ -4,6 +4,9 @@ Operate GCP infrastructure from Codex (desktop app and CLI) through the Gemini
 Cloud Assist `ask_cloud_operator` MCP tool
 (`https://geminicloudassist.googleapis.com/mcp/autocloud`).
 
+> [!IMPORTANT]
+> **Private Preview.** Cloud Operator and its MCP server are in Private Preview.
+
 ## What it does
 
 - `setup` skill — uses an existing OAuth client, or guides you through

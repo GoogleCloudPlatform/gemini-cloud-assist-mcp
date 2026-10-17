@@ -3,6 +3,9 @@
 Operate GCP infrastructure from Claude Code through the Gemini Cloud Assist
 `ask_cloud_operator` MCP tool (`https://geminicloudassist.googleapis.com/mcp/autocloud`).
 
+> [!IMPORTANT]
+> **Private Preview.** Cloud Operator and its MCP server are in Private Preview.
+
 ## What it does
 
 - `/cloud-operator:setup [project]` — guides you through Cloud Console login, OAuth

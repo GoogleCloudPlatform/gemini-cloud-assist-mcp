@@ -1,10 +1,13 @@
 {
   "name": "cloud-operator",
+  "displayName": "Cloud Operator",
   "version": "0.0.1",
-  "description": "Operate GCP infrastructure from Codex through the Gemini Cloud Assist ask_cloud_operator MCP tool. Guides Cloud Console OAuth setup, registers the autocloud MCP server with a 30-minute tool timeout, and sends your GCP operating preferences with the first operator call.",
+  "description": "Routes Google Cloud requests to the Gemini Cloud Assist Operator Agent through the hosted ask_cloud_operator MCP tool, guides you through a one-time setup, allows 30-minute operator runs, and applies your saved GCP operating preferences to Operator Agent conversations.",
   "author": {
     "name": "Google LLC"
   },
+  "homepage": "https://cloud.google.com/gemini/docs/cloud-assist/",
+  "repository": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp",
   "license": "Apache-2.0",
   "keywords": [
     "google-cloud",
