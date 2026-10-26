@@ -50,6 +50,37 @@ curl -fsSL https://raw.githubusercontent.com/GoogleCloudPlatform/gemini-cloud-as
 Then restart Antigravity, turn the plugin on in `/plugin` if it shows as off,
 and run `/cloud-operator:setup`.
 
+## Organization admin setup
+
+Before anyone in an organization can create an operator agent, an
+organization administrator sets up Cloud Operator once for the organization and
+its central management project. Every client plugin includes a guided
+`admin-setup` skill for this: run `/cloud-operator:admin-setup` in Antigravity
+or Claude Code, or ask Codex to "set up Cloud Operator for my organization".
+`/cloud-operator:admin-setup status` only checks.
+
+It walks the admin through each step: the admin's own roles, APIs, the
+Admin Onboarding Console, a users group and its roles, the agent principal set,
+the org policy override for the management project, data egress policies,
+optional Model Armor, the UAP egress policy and the App Hub boundary. For each
+step it checks the current state, explains what will change and why, shows the
+exact `gcloud` commands, and runs them only after the admin says yes (or prints
+them for the admin to run). It then verifies the result, suggests fixes when
+something fails, and ends with a status table.
+
+> [!WARNING]
+> During Private Preview, binding the organization to a management project in
+> the Admin Onboarding Console is permanent. The skill asks the admin to type the
+> project ID before that step.
+
+It runs on macOS, Linux and Cloud Shell, and needs `bash`, `curl` and `gcloud`
+587.0.0 or later with the beta components. Every status it reports comes from
+live `gcloud` and IAM API calls. For each organization and management project
+it keeps two files in `~/.config/cloud-operator/admin-setup/<ORG_ID>/<PROJECT_ID>/`:
+`state.env` (the inputs, such as the org, project and account, so a later run
+doesn't ask again) and `changes.log` (every change it made: time, account,
+command and result). Neither holds secrets, and its scripts manage both.
+
 The rest of this page is for contributors.
 
 ## Layout
@@ -58,6 +89,7 @@ The rest of this page is for contributors.
 skills/autocloud-operator/  The routing skill (when and how to call ask_cloud_operator),
                             shared by every client plugin and the repository-root plugin
 plugins/cloud-operator/
+├── shared/admin-setup/     The organization admin setup skill, the same for every client
 ├── antigravity/            Antigravity: client-specific files
 ├── claude/                 Claude Code: client-specific files
 └── codex/                  Codex: client-specific files
@@ -78,9 +110,34 @@ which assembles the plugin when the user installs it:
 
 1. Copy `skills/autocloud-operator` from the repository root into the plugin's
    `skills/autocloud-operator` folder.
-2. Copy the client folder on top.
-3. Install the assembled plugin with the client's own tooling, through a
+2. Copy `plugins/cloud-operator/shared/admin-setup` into the plugin's
+   `skills/admin-setup` folder.
+3. Copy the client folder on top.
+4. Install the assembled plugin with the client's own tooling, through a
    marketplace where the client needs one.
+
+## Rules for the admin setup skill
+
+- `shared/admin-setup` is client-neutral: plain `gcloud`, `bash` and `curl`, no
+  client-specific tool names or paths. It refers to its own files relative to
+  its folder. A client that needs a slash command for it adds a thin wrapper in
+  its own folder (as `claude/commands/admin-setup.md` does).
+- Helpers that call REST APIs gcloud doesn't cover
+  (`scripts/set-modelarmor-enforcement.sh`,
+  `scripts/bootstrap-agent-identity-pool.sh`) read the access token
+  themselves and send it through stdin, so it never reaches a command line or
+  the change log.
+- Every change goes through `scripts/log-run.sh` after the admin approves it;
+  `scripts/admin-status.sh` stays read-only in Google Cloud and always checks
+  live. Both take `--org` and `--project` and keep their files per org and
+  project (`scripts/paths.sh`); the skill never writes those files itself.
+- `assets/uap-policy-3p.json` holds the UAP egress rules. To update them, take
+  the current third-party rules from the AutoCloud team, keep the
+  `__ORG_ID__` and `__PROJECT_NUMBER__` placeholders, leave out hosts that
+  only serve Google-internal environments, update the rules table in
+  `references/steps.md` (Step 10), and check the result with
+  `admin-status.sh render-uap`. The current rules match the AutoCloud
+  third-party template as of October 2026.
 
 ## The repository-root plugin
 

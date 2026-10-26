@@ -1,0 +1,155 @@
+[
+  {
+    "description": "Rule 1 (ALLOW): CloudCLI read-only MCP endpoint (/mcp/readonly)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "(destination.unregistered.host == 'cloudcli.googleapis.com') && (destination.unregistered.path == '/mcp/readonly')"
+      }
+    }
+  },
+  {
+    "description": "Rule 2 (ALLOW): Terraform init & validate (Terraform registry & HashiCorp releases)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.unregistered.method == 'GET' && (destination.unregistered.host in ['registry.terraform.io', 'releases.hashicorp.com'] || destination.unregistered.host.endsWith('.terraform.io') || destination.unregistered.host.endsWith('.hashicorp.com'))"
+      }
+    }
+  },
+  {
+    "description": "Rule 3 (ALLOW): Registered MCP servers read-only access (MCP discovery methods, and tools/call for tools annotated read_only_hint == true; Rules 3a-3e remain the fallback while destination.is_registered is false)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.is_registered == true && destination.agent_registry.resource_type == 'MCP_SERVER' && (destination.agent_registry.mcp_server.method in ['initialize', 'notifications/initialized', 'ping', 'tools/list', 'resources/list', 'prompts/list', 'server/discover'] || (destination.agent_registry.mcp_server.method == 'tools/call' && destination.agent_registry.mcp_server.tool.annotations.read_only_hint == true))"
+      }
+    }
+  },
+  {
+    "description": "Rule 3a (ALLOW): Google MCP servers read-only access without Agent Registry (MCP discovery methods: initialize, notifications/initialized, ping, tools/list, resources/list, prompts/list, server/discover)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.is_registered == false && (destination.unregistered.host in ['container.googleapis.com', 'monitoring.googleapis.com', 'servicehealth.googleapis.com', 'developerknowledge.googleapis.com', 'apptopology.googleapis.com', 'designcenter.googleapis.com', 'appoptimize.googleapis.com', 'cloudsupport-pa.googleapis.com'] || destination.unregistered.host == 'telemetrymanagement.googleapis.com') && destination.unregistered.mcp_server.method in ['initialize', 'notifications/initialized', 'ping', 'tools/list', 'resources/list', 'prompts/list', 'server/discover']"
+      }
+    }
+  },
+  {
+    "description": "Rule 3b (ALLOW): Google MCP servers read-only access without Agent Registry (tools/call for read-only tools on container.googleapis.com)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.is_registered == false && destination.unregistered.host == 'container.googleapis.com' && destination.unregistered.mcp_server.method == 'tools/call' && (destination.unregistered.mcp_server.tool.name in ['check_k8s_auth', 'describe_k8s_resource', 'get_cluster', 'get_k8s_cluster_info', 'get_k8s_logs', 'get_k8s_resource', 'get_k8s_rollout_status', 'get_k8s_version', 'get_node_pool', 'get_operation'] || destination.unregistered.mcp_server.tool.name in ['list_clusters', 'list_k8s_api_resources', 'list_k8s_events', 'list_node_pools', 'list_operations'])"
+      }
+    }
+  },
+  {
+    "description": "Rule 3c (ALLOW): Google MCP servers read-only access without Agent Registry (tools/call for read-only tools on monitoring.googleapis.com, servicehealth.googleapis.com & developerknowledge.googleapis.com)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.is_registered == false && destination.unregistered.mcp_server.method == 'tools/call' && ((destination.unregistered.host == 'monitoring.googleapis.com' && destination.unregistered.mcp_server.tool.name in ['get_alert', 'get_alert_policy', 'get_dashboard', 'list_alert_policies', 'list_alerts', 'list_dashboards', 'list_metric_descriptors', 'list_timeseries', 'query_range']) || (destination.unregistered.host == 'servicehealth.googleapis.com' && destination.unregistered.mcp_server.tool.name in ['get_project_event', 'list_project_events']) || (destination.unregistered.host == 'developerknowledge.googleapis.com' && destination.unregistered.mcp_server.tool.name in ['answer_query', 'get_documents', 'search_documents']))"
+      }
+    }
+  },
+  {
+    "description": "Rule 3d (ALLOW): Google MCP servers read-only access without Agent Registry (tools/call for read-only tools on apptopology.googleapis.com, designcenter.googleapis.com & appoptimize.googleapis.com)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.is_registered == false && destination.unregistered.mcp_server.method == 'tools/call' && ((destination.unregistered.host == 'apptopology.googleapis.com' && destination.unregistered.mcp_server.tool.name in ['explore_schema', 'generate_discovered_resources_topology', 'get_domain', 'get_schema', 'list_domains']) || (destination.unregistered.host == 'designcenter.googleapis.com' && destination.unregistered.mcp_server.tool.name == 'manage_catalog') || (destination.unregistered.host == 'appoptimize.googleapis.com' && destination.unregistered.mcp_server.tool.name in ['get_cost_report_config', 'get_report_operation', 'list_cost_reports', 'read_cost_report', 'retrieve_cost_data']))"
+      }
+    }
+  },
+  {
+    "description": "Rule 3e (ALLOW): Google MCP servers read-only access without Agent Registry (tools/call for TitanCheckSupportEligibility on the Cloud Support MCP endpoints & read-only tools on telemetrymanagement.googleapis.com)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.is_registered == false && destination.unregistered.mcp_server.method == 'tools/call' && ((destination.unregistered.host in ['cloudsupport-pa.googleapis.com'] && destination.unregistered.mcp_server.tool.name == 'TitanCheckSupportEligibility') || (destination.unregistered.host == 'telemetrymanagement.googleapis.com' && (destination.unregistered.mcp_server.tool.name in ['get_fleet', 'get_operation', 'get_pipeline', 'get_policy_set', 'get_policy_set_revision', 'get_rollout', 'get_route', 'list_collectors', 'list_fleets', 'list_operations'] || destination.unregistered.mcp_server.tool.name in ['list_pipelines', 'list_policy_set_revisions', 'list_policy_sets', 'list_rollouts', 'list_routes'])))"
+      }
+    }
+  },
+  {
+    "description": "Rule 4 (ALLOW): Unregistered Google API hosts read-only access (GETs, container.googleapis.com /mcp/read-only POST & :list/:getIamPolicy/:query/:testIamPermissions POSTs)",
+    "effect": "ALLOW",
+    "principals": [
+      "principalSet://agents.global.org-__ORG_ID__.system.id.goog/attribute.platformContainer/aiplatform/projects/__PROJECT_NUMBER__"
+    ],
+    "operation": {
+      "permissions": [
+        "iap.googleapis.com/resources.egressViaIAP"
+      ]
+    },
+    "conditions": {
+      "iap.googleapis.com": {
+        "expression": "destination.is_registered == false && (destination.unregistered.host in ['googleapis.com', 'clients6.google.com'] || destination.unregistered.host.endsWith('.googleapis.com') || destination.unregistered.host.endsWith('.clients6.google.com')) && (destination.unregistered.method == 'GET' || (destination.unregistered.method == 'POST' && ((destination.unregistered.host == 'container.googleapis.com' && destination.unregistered.path == '/mcp/read-only') || destination.unregistered.path.endsWith(':list') || destination.unregistered.path.endsWith(':getIamPolicy') || destination.unregistered.path.endsWith(':query') || destination.unregistered.path.endsWith(':testIamPermissions'))))"
+      }
+    }
+  }
+]
