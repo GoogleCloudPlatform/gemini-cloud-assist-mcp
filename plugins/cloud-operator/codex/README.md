@@ -20,6 +20,10 @@ Cloud Assist `ask_cloud_operator` MCP tool
   (projects, regions, naming, change policy, security, cost…) or saves a single
   preference. Stored in `~/.config/cloud-operator/preferences.md` and sent to the
   operator's memory.
+- `admin-setup` skill — one-time organization admin setup for organization
+  administrators (ask "Set up Cloud Operator for my organization"). Checks
+  each step, explains it, and runs its `gcloud` commands only after you say
+  yes. See [Organization admin setup](../README.md#organization-admin-setup).
 - `autocloud-operator` skill — thin client: frames GCP requests, includes your preferences
   and local context, calls `ask_cloud_operator`, relays results, keeps you in
   control of approvals.

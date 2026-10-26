@@ -16,6 +16,10 @@ Operate GCP infrastructure from Claude Code through the Gemini Cloud Assist
 - `/cloud-operator:preferences [pref]` — interviews you for GCP operating preferences
   (projects, regions, naming, change policy, security, cost…) or saves a single
   preference. Stored in `~/.config/cloud-operator/preferences.md`.
+- `/cloud-operator:admin-setup [status]` — one-time organization admin setup
+  for organization administrators. Checks each step, explains it, and runs its
+  `gcloud` commands only after you say yes. See
+  [Organization admin setup](../README.md#organization-admin-setup).
 - `autocloud-operator` skill — thin client: frames GCP requests, includes your preferences
   and local context, calls `ask_cloud_operator`, relays results, keeps you in
   control of approvals.

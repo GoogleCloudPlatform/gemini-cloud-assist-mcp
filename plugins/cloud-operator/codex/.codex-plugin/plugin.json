@@ -2,7 +2,7 @@
   "name": "cloud-operator",
   "displayName": "Cloud Operator",
   "version": "0.0.1",
-  "description": "Routes Google Cloud requests to the Gemini Cloud Assist Operator Agent through the hosted ask_cloud_operator MCP tool, guides you through a one-time setup, allows 30-minute operator runs, and applies your saved GCP operating preferences to Operator Agent conversations.",
+  "description": "Routes Google Cloud requests to the Gemini Cloud Assist Operator Agent through the hosted ask_cloud_operator MCP tool, guides you through a one-time setup, allows 30-minute operator runs, and applies your saved GCP operating preferences to Operator Agent conversations. Also includes a guided, one-time organization admin setup (/cloud-operator:admin-setup) that checks and asks before every change.",
   "author": {
     "name": "Google LLC"
   },
@@ -27,7 +27,8 @@
     "developerName": "Google LLC",
     "category": "Productivity",
     "defaultPrompt": [
-      "Set up Cloud Operator"
+      "Set up Cloud Operator",
+      "Set up Cloud Operator for my organization (admin)"
     ]
   },
   "extensions": {

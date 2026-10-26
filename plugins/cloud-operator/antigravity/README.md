@@ -21,6 +21,7 @@ layout.
 | `skills/autocloud-operator` | The shared routing skill from [`skills/autocloud-operator`](../../../skills/autocloud-operator/SKILL.md) at the repository root, used automatically for GCP requests: builds the call, adds your saved preferences to the first call of each session, attaches local context, continues sessions and saves returned code. |
 | `skills/setup` | `/cloud-operator:setup`: checks your default project, ADC file and quota project, runs a smoke call that diagnoses common errors, and checks that saved preferences reach the operator. |
 | `skills/preferences` | `/cloud-operator:preferences`: saves your standing GCP preferences (projects, regions, IaC conventions, compliance, approval rules, cost guardrails) to `~/.config/cloud-operator/preferences.md`, shared with the other Cloud Operator plugins. |
+| `skills/admin-setup` | `/cloud-operator:admin-setup`: one-time organization admin setup, from [`../shared/admin-setup`](../shared/admin-setup/SKILL.md). Checks each step, explains it, and runs its `gcloud` commands only after you say yes. `/cloud-operator:admin-setup status` only checks. See [Organization admin setup](../README.md#organization-admin-setup). |
 
 ## Install
 

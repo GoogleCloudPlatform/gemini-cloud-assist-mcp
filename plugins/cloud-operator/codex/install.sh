@@ -15,8 +15,8 @@
 
 # Installs the Cloud Operator plugin for Codex (desktop + CLI) from this
 # repository checkout. It assembles the plugin as described in
-# plugins/cloud-operator/README.md (skills/autocloud-operator first, then this
-# folder on top), registers it in your personal Codex marketplace and installs it with
+# plugins/cloud-operator/README.md (skills/autocloud-operator first, then
+# shared/admin-setup, then this folder on top), registers it in your personal Codex marketplace and installs it with
 # the Codex CLI. The MCP server and OAuth sign-in are set up afterwards by the
 # plugin's setup skill.
 
@@ -48,6 +48,7 @@ done
 
 CODEX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPERATOR_SKILL="$CODEX_DIR/../../../skills/autocloud-operator"
+ADMIN_SKILL="$CODEX_DIR/../shared/admin-setup"
 PLUGIN_DIR="$HOME/.codex/plugins/cloud-operator"
 MARKET="$HOME/.agents/plugins/marketplace.json"
 CLI="/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
@@ -55,7 +56,7 @@ CLI="/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Content
 say() { printf '\n==> %s\n' "$*"; }
 die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 
-[ -f "$CODEX_DIR/.codex-plugin/plugin.json" ] && [ -f "$OPERATOR_SKILL/SKILL.md" ] ||
+[ -f "$CODEX_DIR/.codex-plugin/plugin.json" ] && [ -f "$OPERATOR_SKILL/SKILL.md" ] && [ -f "$ADMIN_SKILL/SKILL.md" ] ||
   die "run this script from a checkout of the repository (plugins/cloud-operator/codex/install.sh)"
 command -v perl >/dev/null || die "perl is required"
 if [ ! -x "$CLI" ]; then
@@ -75,6 +76,7 @@ if [ -d "$PLUGIN_DIR" ]; then
 fi
 mkdir -p "$PLUGIN_DIR/skills"
 cp -R "$OPERATOR_SKILL" "$PLUGIN_DIR/skills/autocloud-operator"
+cp -R "$ADMIN_SKILL" "$PLUGIN_DIR/skills/admin-setup"
 (cd "$CODEX_DIR" && tar -cf - --exclude ./install.sh --exclude ./README.md .) | (cd "$PLUGIN_DIR" && tar -xf -)
 echo "skills: $(ls "$PLUGIN_DIR/skills" | tr '\n' ' ')"
 

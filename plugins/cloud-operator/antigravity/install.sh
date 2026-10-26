@@ -22,7 +22,8 @@
 #   bash plugins/cloud-operator/antigravity/install.sh
 #
 # It puts the plugin together as plugins/cloud-operator/README.md describes
-# (skills/autocloud-operator first, then this folder on top), checks it with agy plugin validate
+# (skills/autocloud-operator first, then shared/admin-setup, then this folder
+# on top), checks it with agy plugin validate
 # and installs it with agy plugin install (without agy, it copies it into
 # Antigravity's plugin folder instead). It doesn't ask for anything:
 # Antigravity signs in to the MCP server with your Application Default
@@ -60,7 +61,8 @@ Installs the Cloud Operator plugin for Antigravity:
      Default Credentials (a warning only: the plugin needs ADC to reach the
      operator);
   2. puts the plugin together: the autocloud-operator skill from skills/ at
-     the repository root, then the Antigravity files from plugins/cloud-operator/antigravity, and
+     the repository root, the admin-setup skill from plugins/cloud-operator/shared,
+     then the Antigravity files from plugins/cloud-operator/antigravity, and
      checks it with agy plugin validate;
   3. installs it with agy plugin install, replacing an earlier version of it.
 
@@ -116,15 +118,19 @@ download_source() {
 
 # Puts the plugin together from plugin folder $1 into $STAGE: the
 # autocloud-operator skill from skills/ at the repository root first, then the
-# folder itself on top (minus this script).
+# admin-setup skill from plugins/cloud-operator/shared, then the folder itself
+# on top (minus this script).
 assemble_plugin() {
-  local dir="$1" skill="$1/../../../skills/autocloud-operator" tmp="$STAGE.tmp.$$"
+  local dir="$1" skill="$1/../../../skills/autocloud-operator" admin="$1/../shared/admin-setup" tmp="$STAGE.tmp.$$"
   [ -f "$dir/plugin.json" ] || die "$dir doesn't contain the Antigravity plugin (no plugin.json)"
   [ -f "$skill/SKILL.md" ] ||
     die "$dir isn't in a checkout of this repository (no skills/autocloud-operator at the root)"
+  [ -f "$admin/SKILL.md" ] ||
+    die "$dir isn't in a checkout of this repository (no plugins/cloud-operator/shared/admin-setup)"
   rm -rf "$tmp"
   mkdir -p "$tmp/skills"
   cp -R "$skill" "$tmp/skills/autocloud-operator"
+  cp -R "$admin" "$tmp/skills/admin-setup"
   (cd "$dir" && tar -cf - --exclude ./install.sh --exclude __pycache__ .) | (cd "$tmp" && tar -xf -)
   rm -rf "$STAGE"
   mkdir -p "$(dirname "$STAGE")"

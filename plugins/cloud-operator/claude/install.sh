@@ -22,7 +22,8 @@
 #   bash plugins/cloud-operator/claude/install.sh
 #
 # It puts the plugin together as plugins/cloud-operator/README.md describes
-# (skills/autocloud-operator first, then this folder on top), writes its marketplace manifest
+# (skills/autocloud-operator first, then shared/admin-setup, then this folder
+# on top), writes its marketplace manifest
 # and installs it, replacing the plugin at the root of this repository. It
 # also updates the permissions in Claude Code's user settings, so Claude reads
 # your preferences in ~/.config/cloud-operator without asking. It doesn't ask for
@@ -68,7 +69,8 @@ usage() {
 Installs the Cloud Operator plugin for Claude Code:
   1. checks that Claude Code is installed;
   2. puts the plugin together: the autocloud-operator skill from skills/ at
-     the repository root, then the Claude Code files from plugins/cloud-operator/claude, plus its
+     the repository root, the admin-setup skill from plugins/cloud-operator/shared,
+     then the Claude Code files from plugins/cloud-operator/claude, plus its
      marketplace manifest;
   3. installs it in Claude Code, replacing an earlier version of it and the
      plugin it supersedes: gemini-cloud-assist-mcp, from the root of this
@@ -143,15 +145,16 @@ EOF
 
 # Puts the plugin together from checkout $1 into $STAGE: the
 # autocloud-operator skill from skills/ at the repository root first, then the
-# claude/ folder on top (minus this script and the tests), and then the
-# marketplace manifest.
+# admin-setup skill from plugins/cloud-operator/shared, then the claude/ folder
+# on top (minus this script and the tests), and then the marketplace manifest.
 assemble_plugin() {
   local src="$1/plugins/cloud-operator" skill="$1/skills/autocloud-operator" tmp="$STAGE.tmp.$$"
-  [ -f "$skill/SKILL.md" ] && [ -f "$src/claude/.claude-plugin/plugin.json" ] ||
-    die "$1 doesn't contain skills/autocloud-operator and plugins/cloud-operator/claude"
+  [ -f "$skill/SKILL.md" ] && [ -f "$src/claude/.claude-plugin/plugin.json" ] && [ -f "$src/shared/admin-setup/SKILL.md" ] ||
+    die "$1 doesn't contain skills/autocloud-operator, plugins/cloud-operator/claude and plugins/cloud-operator/shared/admin-setup"
   rm -rf "$tmp"
   mkdir -p "$tmp/skills"
   cp -R "$skill" "$tmp/skills/autocloud-operator"
+  cp -R "$src/shared/admin-setup" "$tmp/skills/admin-setup"
   (cd "$src/claude" && tar -cf - --exclude ./install.sh --exclude ./tests .) | (cd "$tmp" && tar -xf -)
   write_marketplace "$tmp"
   rm -rf "$STAGE"
