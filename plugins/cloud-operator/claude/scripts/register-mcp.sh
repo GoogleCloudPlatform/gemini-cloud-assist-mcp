@@ -15,14 +15,18 @@
 
 # Registers the autocloud MCP server in Claude Code, at user scope, with your
 # OAuth client and a 30-minute tool timeout, then signs you in with
-# `claude mcp login autocloud`. /cloud-operator:setup asks you to run it in your
-# own terminal, so the client secret stays out of the conversation:
+# `claude mcp login autocloud`. /cloud-operator:setup runs it for you with
+# --client-json and --no-login, or has you run it in your own terminal, which
+# also signs you in. Either way, the client secret stays out of the
+# conversation:
 #
-#   bash <plugin folder>/scripts/register-mcp.sh
+#   bash <plugin folder>/scripts/register-mcp.sh --client-json PATH
 #
-# Reads CLOUD_OPERATOR_CLIENT_ID / CLOUD_OPERATOR_CLIENT_SECRET from the environment, or
-# asks for them (the secret is hidden). Run with --help for all options. Works
-# with macOS's default bash 3.2.
+# Reads the client ID and secret from the OAuth client credentials JSON file at
+# PATH, which the Google Cloud console offers when you create the client.
+# Without --client-json, reads CLOUD_OPERATOR_CLIENT_ID / CLOUD_OPERATOR_CLIENT_SECRET
+# from the environment, or asks for them (the secret is hidden). Run with
+# --help for all options. Works with macOS's default bash 3.2.
 
 set -euo pipefail
 
@@ -37,6 +41,8 @@ unset CLOUD_OPERATOR_CLIENT_SECRET
 CALLBACK_PORT=""
 LOGIN=1
 SIGNED_IN=0
+CLIENT_JSON=""  # --client-json PATH
+CLIENT_KIND=""  # from the file: installed (Desktop app) or web (Web application)
 
 say() { printf '\n==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
@@ -49,21 +55,27 @@ die() {
 usage() {
   cat <<'EOF'
 Registers the autocloud MCP server in Claude Code with your OAuth client:
-  1. asks for the OAuth client ID and secret (the secret isn't shown), unless
-     CLOUD_OPERATOR_CLIENT_ID and CLOUD_OPERATOR_CLIENT_SECRET are set;
+  1. gets the OAuth client ID and secret: from your client's credentials JSON
+     file with --client-json, or from CLOUD_OPERATOR_CLIENT_ID and
+     CLOUD_OPERATOR_CLIENT_SECRET, or else it asks for them (the secret isn't
+     shown);
   2. replaces any user-scope autocloud server with one that uses your client
      and a 30-minute tool timeout. Claude Code keeps the secret in the system
      keychain (or its credentials file), not in its config;
   3. signs you in with claude mcp login autocloud: a browser window opens.
 
 Create the OAuth client first, in the Google Cloud console: Google Auth
-Platform > Clients > Create client > Desktop app. /cloud-operator:setup in Claude
-Code walks you through it, and tells you when to run this script. Or use the
-ID and secret of an existing client; for a Web application client, add
+Platform > Clients > Create client > Desktop app, then click Download JSON in
+the dialog that shows the new client. /cloud-operator:setup in Claude Code
+walks you through it, then runs this script for you or tells you when to run
+it. Or use an existing client; for a Web application client, add
 --callback-port with the port of its redirect URI.
 
 Usage: register-mcp.sh [options]
 
+  --client-json PATH    Read the client ID and secret from the OAuth client
+                        credentials JSON file at PATH. Only the client ID is
+                        shown, and the file stays where it is.
   --no-login            Register only. Sign in later from Claude Code
                         (/mcp > autocloud > Authenticate) or with
                         claude mcp login autocloud.
@@ -79,7 +91,8 @@ EOF
 }
 
 # True if there's a terminal to ask from: this script's stdin. There's none
-# when Claude runs the script, so it passes the environment variables instead.
+# when Claude runs the script, so it passes --client-json, or the environment
+# variables, instead.
 can_prompt() { [ -t 0 ]; }
 
 # Gets the terminal ready for answers: line input with echo, since a program
@@ -128,24 +141,154 @@ set_callback_port() { # set_callback_port PORT
   CALLBACK_PORT="$1"
 }
 
-ask_client() {
-  if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ]; then
-    can_prompt ||
-      die "no terminal to ask for your OAuth client from: run this script in your terminal, or set CLOUD_OPERATOR_CLIENT_ID and CLOUD_OPERATOR_CLIENT_SECRET"
-    prepare_terminal
-    say "Your OAuth client"
-    info "Your OAuth client from the Google Cloud console (Google Auth Platform > Clients)."
-  fi
-  ask CLIENT_ID "OAuth client ID"
-  [ -n "$CLIENT_ID" ] || die "a client ID is needed: enter it at the prompt or set CLOUD_OPERATOR_CLIENT_ID"
+set_client_json() { # set_client_json PATH
+  [ -n "$1" ] || die "--client-json needs the path of your OAuth client credentials JSON file"
+  CLIENT_JSON="$1"
+}
+
+check_client_id() {
   local id_re='^[A-Za-z0-9._-]+$'
   [[ "$CLIENT_ID" =~ $id_re ]] || die "the client ID '$CLIENT_ID' contains unsupported characters"
   case "$CLIENT_ID" in
     *.apps.googleusercontent.com) ;;
     *) warn "'$CLIENT_ID' doesn't end in .apps.googleusercontent.com; check that it's the client ID" ;;
   esac
+}
+
+ask_client() {
+  if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ]; then
+    can_prompt ||
+      die "no terminal to ask for your OAuth client from: pass --client-json with the path of its credentials JSON file, run this script in your terminal, or set CLOUD_OPERATOR_CLIENT_ID and CLOUD_OPERATOR_CLIENT_SECRET"
+    prepare_terminal
+    say "Your OAuth client"
+    info "Your OAuth client from the Google Cloud console (Google Auth Platform > Clients)."
+  fi
+  ask CLIENT_ID "OAuth client ID"
+  [ -n "$CLIENT_ID" ] || die "a client ID is needed: enter it at the prompt or set CLOUD_OPERATOR_CLIENT_ID"
+  check_client_id
   ask CLIENT_SECRET "OAuth client secret (not shown)" secret
   [ -n "$CLIENT_SECRET" ] || die "a client secret is needed: enter it at the prompt or set CLOUD_OPERATOR_CLIENT_SECRET"
+  info "client ID: $CLIENT_ID"
+}
+
+# What reads the credentials file: perl (with JSON::PP), python3, or none.
+# Debian and Ubuntu images without the full perl package lack JSON::PP.
+# CLOUD_OPERATOR_JSON_TOOL overrides it, for tests.
+json_tool() {
+  if [ -n "${CLOUD_OPERATOR_JSON_TOOL:-}" ]; then
+    printf '%s\n' "$CLOUD_OPERATOR_JSON_TOOL"
+  elif command -v perl >/dev/null 2>&1 && perl -MJSON::PP -e 1 >/dev/null 2>&1; then
+    echo perl
+  elif command -v python3 >/dev/null 2>&1; then
+    echo python3
+  else
+    echo none
+  fi
+}
+
+# The two parsers of a credentials file print four lines: OK, the client type
+# (installed or web), the client ID and the client secret. On failure they
+# print one line: ERR and the reason, which never holds the secret. Their
+# output goes to a pipe, never to the terminal.
+# shellcheck disable=SC2016 # perl code, expanded by perl
+PARSE_PERL='
+use strict;
+use warnings;
+use JSON::PP;
+sub fail { print "ERR $_[0]\n"; exit 0 }
+open(my $fh, "<:raw", $ARGV[0]) or fail("cannot read it: $!");
+my $raw = do { local $/; <$fh> };
+close $fh;
+$raw = "" unless defined $raw;
+$raw =~ s/^\xEF\xBB\xBF//;
+fail("it is empty") unless $raw =~ /\S/;
+my $data;
+fail("it is not valid JSON") unless eval { $data = JSON::PP->new->decode($raw); 1 };
+my @kinds = ref $data eq "HASH" ? grep { ref $data->{$_} eq "HASH" } qw(installed web) : ();
+fail("it is not an OAuth client credentials file: it has no \"installed\" (Desktop app) or \"web\" (Web application) section")
+  unless @kinds == 1;
+my ($id, $secret) = @{ $data->{$kinds[0]} }{qw(client_id client_secret)};
+# The patterns end in \z: $ also matches before a final newline.
+fail("it has no valid client_id")
+  unless defined $id && !ref $id && $id =~ /^[A-Za-z0-9._-]{1,255}\z/;
+fail("it has no client_secret: use the file you download from the dialog that shows the new client when you create it")
+  unless defined $secret && !ref $secret && $secret ne "";
+fail("its client_secret has unexpected characters") unless $secret =~ /^[\x21-\x7e]{1,255}\z/;
+print "OK\n$kinds[0]\n$id\n$secret\n";
+'
+
+PARSE_PYTHON='
+import json, re, sys
+def fail(msg):
+    print("ERR " + msg)
+    sys.exit(0)
+try:
+    with open(sys.argv[1], "rb") as f:
+        raw = f.read()
+except OSError as e:
+    fail("cannot read it: " + (e.strerror or "error"))
+if raw.startswith(b"\xef\xbb\xbf"):
+    raw = raw[3:]
+if not raw.strip():
+    fail("it is empty")
+try:
+    data = json.loads(raw.decode("utf-8"))
+except Exception:
+    fail("it is not valid JSON")
+kinds = [k for k in ("installed", "web") if isinstance(data, dict) and isinstance(data.get(k), dict)]
+if len(kinds) != 1:
+    fail("it is not an OAuth client credentials file: it has no \"installed\" (Desktop app) or \"web\" (Web application) section")
+cid, secret = data[kinds[0]].get("client_id"), data[kinds[0]].get("client_secret")
+if not isinstance(cid, str) or not re.fullmatch(r"[A-Za-z0-9._-]{1,255}", cid):
+    fail("it has no valid client_id")
+if not isinstance(secret, str) or secret == "":
+    fail("it has no client_secret: use the file you download from the dialog that shows the new client when you create it")
+if not re.fullmatch(r"[\x21-\x7e]{1,255}", secret):
+    fail("its client_secret has unexpected characters")
+sys.stdout.write("OK\n%s\n%s\n%s\n" % (kinds[0], cid, secret))
+'
+
+parse_client_json() { # parse_client_json PATH
+  # Without --, perl takes a PATH that starts with - for one of its switches.
+  case "$(json_tool)" in
+    perl) perl -e "$PARSE_PERL" -- "$1" ;;
+    python3) python3 -c "$PARSE_PYTHON" "$1" ;;
+    *) echo "ERR reading it needs perl (with JSON::PP) or python3: install one, or run this script without --client-json and enter the client ID and secret" ;;
+  esac
+}
+
+# Reads the client ID and secret from the credentials file at CLIENT_JSON.
+# Process substitution keeps the secret in a pipe: bash 3.2 writes
+# here-documents to a temporary file.
+load_client_json() {
+  local status=""
+  # A quoted ~/... path reaches the script unexpanded.
+  # shellcheck disable=SC2088 # matching a literal ~/ on purpose
+  case "$CLIENT_JSON" in
+    "~/"*) CLIENT_JSON="$HOME/${CLIENT_JSON#\~/}" ;;
+  esac
+  [ -e "$CLIENT_JSON" ] || die "no such file: $CLIENT_JSON"
+  [ -f "$CLIENT_JSON" ] || die "not a file: $CLIENT_JSON"
+  {
+    IFS= read -r status || true
+    if [ "$status" = OK ]; then
+      IFS= read -r CLIENT_KIND || true
+      IFS= read -r CLIENT_ID || true
+      IFS= read -r CLIENT_SECRET || true
+    fi
+  } < <(parse_client_json "$CLIENT_JSON")
+  case "$status" in
+    OK) [ -n "$CLIENT_ID" ] && [ -n "$CLIENT_SECRET" ] || die "$CLIENT_JSON: couldn't read the client from it" ;;
+    "ERR "*) die "$CLIENT_JSON: ${status#ERR }" ;;
+    *) die "$CLIENT_JSON: couldn't read the client from it" ;;
+  esac
+  check_client_id
+  if [ "$CLIENT_KIND" = web ] && [ -z "$CALLBACK_PORT" ]; then
+    CLIENT_SECRET=""
+    die "$CLIENT_JSON holds a Web application client: add --callback-port with the port of its http://localhost:PORT/callback redirect URI"
+  fi
+  say "Your OAuth client"
+  info "credentials file: $CLIENT_JSON"
   info "client ID: $CLIENT_ID"
 }
 
@@ -166,6 +309,9 @@ register_server() {
   fi
   CLIENT_SECRET=""
   info "registered at user scope, with a 30-minute tool timeout"
+  if [ -n "$CLIENT_JSON" ]; then
+    info "$CLIENT_JSON still holds the client secret: keep it private, or delete it once you've saved it elsewhere, such as in Secret Manager"
+  fi
 }
 
 sign_in() {
@@ -233,6 +379,8 @@ EOF
 main() {
   while [ $# -gt 0 ]; do
     case "$1" in
+      --client-json) need_value "$1" $#; set_client_json "$2"; shift 2 ;;
+      --client-json=*) set_client_json "${1#*=}"; shift ;;
       --no-login) LOGIN=0; shift ;;
       --callback-port) need_value "$1" $#; set_callback_port "$2"; shift 2 ;;
       --callback-port=*) set_callback_port "${1#*=}"; shift ;;
@@ -245,7 +393,11 @@ main() {
   command -v claude >/dev/null 2>&1 ||
     die "Claude Code isn't installed or isn't on your PATH. Install it, then re-run."
 
-  ask_client
+  if [ -n "$CLIENT_JSON" ]; then
+    load_client_json
+  else
+    ask_client
+  fi
   register_server
   sign_in
   show_status

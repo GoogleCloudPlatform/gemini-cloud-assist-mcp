@@ -1,0 +1,4 @@
+# Keep LF line endings in shell scripts: bash rejects the CRLF endings that a
+# Windows checkout with core.autocrlf=true would otherwise give them.
+*.sh text eol=lf
+claude/tests/stubs/* text eol=lf

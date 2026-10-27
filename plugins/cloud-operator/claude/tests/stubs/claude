@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Test stub for the claude CLI: records each call and the hash of
+# MCP_CLIENT_SECRET (never the value), and answers like Claude Code would.
+log="${CLAUDE_STUB_LOG:-/dev/null}"
+if [ -n "${MCP_CLIENT_SECRET+x}" ]; then
+  sec="sha256:$(printf '%s' "$MCP_CLIENT_SECRET" | perl -MDigest::SHA=sha256_hex -e 'local $/; print sha256_hex(<STDIN>)')"
+else
+  sec="unset"
+fi
+printf 'claude %s | MCP_CLIENT_SECRET=%s\n' "$*" "$sec" >>"$log"
+case "${1:-} ${2:-}" in
+  "mcp add-json")
+    if [ "${CLAUDE_STUB_FAIL_ADD:-0}" = 1 ]; then
+      echo "error: stub add-json failure" >&2
+      exit 1
+    fi
+    [ -n "${MCP_CLIENT_SECRET:-}" ] || { echo "error: no client secret" >&2; exit 2; }
+    ;;
+  "mcp get")
+    printf '%s:\n  Scope: User config (available in all your projects)\n  Status: ! Needs authentication\n' "${3:-autocloud}"
+    ;;
+esac
+exit 0

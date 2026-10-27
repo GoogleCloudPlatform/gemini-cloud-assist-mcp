@@ -16,52 +16,65 @@ Constants:
 
 The plugin ships an onboarding guide, `${CLAUDE_PLUGIN_ROOT}/onboarding.md`. It holds the details and the troubleshooting table. **Read it now**, and read its Troubleshooting section whenever a step below fails.
 
-Run `claude mcp get autocloud`. If its URL isn't the Endpoint above, register the server again in Step 4 with the user's existing OAuth client, even if it reports "Connected", then skip the steps that are already done. Otherwise, if it reports "Connected", tell the user the autocloud MCP server is already set up and skip to Step 4b, which checks their operator project and agent, then Step 5 (offer to update preferences). If an `autocloud` server exists in **local** or **project** scope, note it — it would shadow the user-scope server this setup creates — and offer to remove it at the end.
+Run `claude mcp get autocloud`. If its URL isn't the Endpoint above, register the server again in Step 3 with the user's existing OAuth client, even if it reports "Connected", then skip the steps that are already done. Otherwise, if it reports "Connected", tell the user the autocloud MCP server is already set up and skip to Step 3b, which checks their operator project and agent, then Step 4 (offer to update preferences). If an `autocloud` server exists in **local** or **project** scope, note it — it would shadow the user-scope server this setup creates — and offer to remove it at the end.
 
 ## Step 1 — Choose the OAuth client project
 
-First, ask whether the user already has an OAuth client ID and secret. If they do, skip to Step 4 with that client, after checking two things.
-- Ask whether it's a **Desktop app** or a **Web application** client. For a Web application client, ask for the port in its redirect URI, `http://localhost:<PORT>/callback`, because Step 4 needs it. It's under **Authorized redirect URIs** in the client's settings.
+First, ask whether the user already has an OAuth client. If they have the OAuth client credentials JSON file, ask where it is and skip to Step 3, path **File**. If they have only the client ID and secret, skip to Step 3, path **Prompt**. Check two things first.
+- Ask whether it's a **Desktop app** or a **Web application** client. For a Web application client, ask for the port in its redirect URI, `http://localhost:<PORT>/callback`, listed under **Authorized redirect URIs** in the client's settings, and add `--callback-port <PORT>` to the registration command in Step 3.
 - An existing client only signs in the accounts its owner allows. The owner must add the user's account as a test user of an External client, or the account must belong to the organization of an Internal one.
 
-Otherwise, this project only hosts the user's OAuth client (`<PROJECT>` in Steps 1–3); it must have the Gemini Cloud Assist API enabled. It doesn't have to be the project the operator will work in (where the user's agent is); Step 4b asks for that separately. Use `$ARGUMENTS` if given, otherwise ask for the OAuth client project, and say that the same project is fine if it's where they'll run the operator.
+Otherwise, this project only hosts the user's OAuth client (`<PROJECT>` in Steps 1–2); it must have the Gemini Cloud Assist API enabled. It doesn't have to be the project the operator will work in (where the user's agent is); Step 3b asks for that separately. Use `$ARGUMENTS` if given, otherwise ask for the OAuth client project, and say that the same project is fine if it's where they'll run the operator.
 
 1. Run `gcloud config get-value account`. If gcloud is missing or not logged in, tell the user to run `! gcloud auth login` and wait.
 2. Run `gcloud services list --enabled --project <PROJECT> --filter="config.name:geminicloudassist.googleapis.com" --format="value(config.name)"`.
 3. If the API is not enabled, ask permission, then run `gcloud services enable geminicloudassist.googleapis.com --project <PROJECT>`.
 
-## Step 2 — Log in to Cloud Console and configure the consent screen
+## Step 2 — Create the OAuth client and download its credentials JSON file
 
-Tell the user to open (substituting the project ID):
-
-https://console.cloud.google.com/auth/overview?project=<PROJECT>
-
-- Log in with the Google account they will use for the autocloud MCP server.
-- If prompted to configure Google Auth Platform, fill only the required fields and save. Choose the audience:
-  - **Internal** if the project belongs to the user's own organization and only its users need access. No test users needed.
-  - Otherwise **External**: add the user's own email under **Test users**. Warn them that refresh tokens for External apps in Testing expire after 7 days, so they'll need to re-authenticate weekly. At login they'll see an "unverified app" screen; it's their own app, so they can continue.
-
-## Step 3 — Create the OAuth client
-
-Tell the user to open:
+Tell the user to open (substituting the project ID), logged in with the Google account they will use for the autocloud MCP server:
 
 https://console.cloud.google.com/auth/clients/create?project=<PROJECT>
 
+- If the Console first asks them to configure Google Auth Platform (the consent screen), fill only the required fields and save. Choose the audience:
+  - **Internal** if the project belongs to their own organization and only its users need access. No test users needed.
+  - Otherwise **External**: add their own email under **Test users**. Warn them that:
+    - refresh tokens for External apps in Testing expire after 7 days, so they'll need to re-authenticate weekly;
+    - at login they'll see an "unverified app" screen; it's their own app, so they can continue.
 - Application type: **Desktop app** (not Web application — Claude Code's login callback uses a random localhost port, which only Desktop clients accept)
 - Name: `claude-code-cloud-operator`
-- Click **Create**, then keep the **Client ID** and **Client secret** ready.
+- Before they click **Create**, warn them that the Console shows the client secret only once, in the dialog that opens after **Create**: they must click **Download JSON** there, before closing the dialog, to save the credentials JSON file. The file holds the client secret. To keep it, and to share the client with teammates, they can store the file in Secret Manager: https://docs.cloud.google.com/secret-manager/docs/overview
+- Click **Create**, then **Download JSON**. They don't need to copy the client ID or secret, and shouldn't paste either here.
 
-## Step 4 — Register the MCP server
+When they've downloaded the file, go to Step 3, path **File**.
 
-Ask the user to run the registration script **in their own terminal** (a new terminal window or tab), so the client secret stays out of this conversation. Show the user this command:
+## Step 3 — Register the MCP server
 
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/register-mcp.sh"
-```
+Register the server with the registration script, keeping the client secret out of this conversation. Use the path for the user's case:
 
-For a Web application client, such as a shared one from Step 1, add `--callback-port <PORT>` with the port from its redirect URI.
+- **File** (they have the OAuth client credentials JSON file, from Step 2 or from elsewhere). Find out where it is: in their Downloads folder (`~/Downloads`), or elsewhere (they give the path). Work out its absolute path. If it's in `~/Downloads` and they don't know its name, list the JSON files there (`ls -t ~/Downloads/*.json`) and ask which one it is, or ask for its path (if they give a relative path, work out the absolute path from it). Never open, read, print, copy or move the file yourself: the script reads it.
 
-It asks for the client ID and secret (the secret is hidden), replaces any user-scope `autocloud` MCP server entry with one that has the OAuth client and the 30-minute timeout, and signs the user in with `claude mcp login autocloud`, which opens the Google sign-in in the browser. It registers the server the way you would by hand:
+  Offer to run the script for them. It reads the client ID and secret from the file and prints only the client ID, so the secret stays out of this conversation. Keep `--no-login`: your shell has no terminal for the sign-in, so they sign in from `/mcp` after the restart.
+
+  ```bash
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/register-mcp.sh" --client-json "<ABSOLUTE PATH>" --no-login
+  ```
+
+  If they'd rather run it themselves, which also signs them in right away, show them this command to run in their own terminal (a new window or tab):
+
+  ```bash
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/register-mcp.sh" --client-json "<ABSOLUTE PATH>"
+  ```
+
+- **Prompt** (they have the client ID and secret, but no file). Ask them to run this command in their own terminal (a new window or tab), so the secret stays out of this conversation. It asks for the client ID and secret (the secret is hidden):
+
+  ```bash
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/register-mcp.sh"
+  ```
+
+  If they'd rather paste the client ID and secret here, first tell them that the secret then ends up in this conversation: in their message, and in your command that runs the script. If they still want to, run the script yourself with them in `CLOUD_OPERATOR_CLIENT_ID` and `CLOUD_OPERATOR_CLIENT_SECRET`, plus `--no-login` and, for a Web application client, `--callback-port <PORT>`, and don't repeat the secret in your replies.
+
+The script registers the server and, without `--no-login`, signs the user in with `claude mcp login autocloud`, which opens the Google sign-in in the browser. It registers the server like this:
 
 ```bash
 claude mcp remove autocloud -s user 2>/dev/null
@@ -70,13 +83,11 @@ MCP_CLIENT_SECRET='<CLIENT_SECRET>' claude mcp add-json -s user autocloud \
   --client-secret
 ```
 
-If the user prefers to paste the client ID and secret here, first tell them that the secret then ends up in this conversation: in their message, and in your command that runs the script. If they still want to, run the script yourself with them in `CLOUD_OPERATOR_CLIENT_ID` and `CLOUD_OPERATOR_CLIENT_SECRET`, plus `--no-login` (your shell has no terminal for the sign-in) and, for a Web application client, `--callback-port <PORT>`, and don't repeat the secret in your replies.
-
 When the script has finished, run `claude mcp get autocloud`: expect "Connected", or "Needs authentication" if the user hasn't signed in yet. If a local/project-scope `autocloud` MCP server entry was found in Step 0, offer to remove it now (`claude mcp remove autocloud -s local`).
 
 Then tell the user:
 1. Restart Claude Code so it picks up the new server: exit, then run `claude -c` in the same folder to continue this conversation.
-2. Run `/mcp` and check that **autocloud** is connected. If it isn't signed in yet (for example, because they pasted the client here), select **autocloud**, choose **Authenticate**, and finish the Google login in the browser.
+2. Run `/mcp` and check that **autocloud** is connected. If it isn't signed in yet (for example, because you ran the script for them), select **autocloud**, choose **Authenticate**, and finish the Google login in the browser.
 3. If Google shows `redirect_uri_mismatch` or "doesn't comply with Google's OAuth 2.0 policy … register the redirect URI": with an existing Web application client, rerun the script with `--callback-port` and the port of its redirect URI. Otherwise, first confirm the client is a **Desktop app** (Desktop clients accept any loopback port). If it still fails, switch to a **Web application** client with a fixed port: register `http://localhost:3118/callback` under **Authorized redirect URIs** and save, wait 2–5 minutes, then rerun the script with that client and `--callback-port 3118`, which puts `"callbackPort":3118` inside `"oauth"` (Claude Code otherwise picks a random port, which wouldn't match).
 
 Wait for the user to confirm they are connected. If login fails, match the error against the Troubleshooting table in the onboarding guide, and walk them through the fix.
@@ -90,7 +101,7 @@ Wait for the user to confirm they are connected. If login fails, match the error
    ```
 3. Tell the user the token **expires after about 1 hour** and doesn't refresh. Re-run step 2 when calls fail with "invalid authentication credentials". The token is stored in plain text in `~/.claude.json`. For daily use, finish the OAuth setup above, which refreshes automatically.
 
-## Step 4b — Choose the operator project and agent
+## Step 3b — Choose the operator project and agent
 
 Once **autocloud** shows as connected:
 
@@ -111,6 +122,6 @@ Once **autocloud** shows as connected:
    - If there are no sessions yet, read the `context_id` from the call in item 3.
    - Report the agent as `locations/global/agents/<AGENT_ID>` in project `<AGENT_PROJECT>`. Don't pass or save the full name from a session: its project number doesn't match a project ID in `project`, and the call fails with "invalid argument".
 
-## Step 5 — Bootstrap GCP preferences
+## Step 4 — Bootstrap GCP preferences
 
 Run the `/cloud-operator:preferences` flow so the operator starts with the user's context. Pass along `<AGENT_PROJECT>` as the default project and, only if the user picked a specific agent, that agent as `locations/<loc>/agents/<ID>` **with its project**, because it's only valid there. When done, summarize: account, OAuth client (one they created, with its project, or an existing one), operator project, MCP status, agent (personal default, noting if setup created it, or the pinned ID), preferences file location (`~/.config/cloud-operator/preferences.md`), the onboarding guide to keep for reference, and how to use it ("just ask me to do things in GCP").

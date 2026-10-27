@@ -143,7 +143,8 @@ EOF
 
 # Puts the plugin together from checkout $1 into $STAGE: the
 # autocloud-operator skill from skills/ at the repository root first, then the
-# claude/ folder on top (minus this script), and then the marketplace manifest.
+# claude/ folder on top (minus this script and the tests), and then the
+# marketplace manifest.
 assemble_plugin() {
   local src="$1/plugins/cloud-operator" skill="$1/skills/autocloud-operator" tmp="$STAGE.tmp.$$"
   [ -f "$skill/SKILL.md" ] && [ -f "$src/claude/.claude-plugin/plugin.json" ] ||
@@ -151,7 +152,7 @@ assemble_plugin() {
   rm -rf "$tmp"
   mkdir -p "$tmp/skills"
   cp -R "$skill" "$tmp/skills/autocloud-operator"
-  (cd "$src/claude" && tar -cf - --exclude ./install.sh .) | (cd "$tmp" && tar -xf -)
+  (cd "$src/claude" && tar -cf - --exclude ./install.sh --exclude ./tests .) | (cd "$tmp" && tar -xf -)
   write_marketplace "$tmp"
   rm -rf "$STAGE"
   mkdir -p "$(dirname "$STAGE")"

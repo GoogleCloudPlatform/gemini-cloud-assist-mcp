@@ -48,11 +48,12 @@ bash plugins/cloud-operator/claude/install.sh
 
 The installer installs the plugin only, and asks for nothing. Then start
 Claude Code and run `/cloud-operator:setup`: it walks you through creating your
-OAuth client (or uses an existing one), has you run
-[`scripts/register-mcp.sh`](scripts/register-mcp.sh) in your terminal to
-register the `autocloud` MCP server and sign in (so the client secret stays out
-of the conversation), helps you create your operator agent if you don't have
-one, and saves your preferences.
+OAuth client (or uses an existing one), runs
+[`scripts/register-mcp.sh`](scripts/register-mcp.sh) with your client's
+credentials JSON file, or has you run it in your terminal, to register the
+`autocloud` MCP server (the script reads the client secret from the file, so it
+stays out of the conversation), helps you create your operator agent if you
+don't have one, and saves your preferences.
 
 The installer also removes `gemini-cloud-assist-mcp`, the plugin at the root of
 this repository, which this plugin replaces in Claude Code: their skills would
