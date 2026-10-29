@@ -63,6 +63,7 @@ _CHANGED_FILES = flags.DEFINE_list(
 
 _MAX_FILE_BYTES = 128 * 1024
 _MAX_COMMENT_CHARS = 16 * 1024
+_MAX_ISSUE_BODY_CHARS = 32 * 1024
 
 
 def _extract_issue_comment_body(payload: Mapping[str, Any]) -> str:
@@ -114,6 +115,36 @@ def _extract_pr_metadata(
   return 0, 'Local Smoke Test PR', 'smoke-test-branch'
 
 
+def _extract_issue_metadata(
+    payload: Mapping[str, Any],
+) -> tuple[int, str, str, list[str]]:
+  """Extracts `(issue_number, title, body, labels)` from an issue payload."""
+  issue_obj = payload.get('issue')
+  if not isinstance(issue_obj, Mapping):
+    return 1, 'Local Smoke Test Issue', '', []
+
+  issue_num = int(issue_obj.get('number', 0) or 0)
+  title = str(issue_obj.get('title', '') or f'Issue #{issue_num}')
+  raw_body = issue_obj.get('body')
+  body = (
+      raw_body.strip()[:_MAX_ISSUE_BODY_CHARS]
+      if isinstance(raw_body, str)
+      else ''
+  )
+  labels: list[str] = []
+  raw_labels = issue_obj.get('labels')
+  if isinstance(raw_labels, list):
+    for entry in raw_labels:
+      if isinstance(entry, Mapping):
+        name = entry.get('name')
+        if isinstance(name, str) and name.strip():
+          labels.append(name.strip())
+      elif isinstance(entry, str) and entry.strip():
+        labels.append(entry.strip())
+
+  return issue_num, title, body, labels
+
+
 def _read_workspace_files(
     workspace_dir: str, relative_paths: Sequence[str]
 ) -> dict[str, str]:
@@ -139,10 +170,10 @@ def _read_workspace_files(
   return bundled
 
 
-def run_action(
+def _run_code_review(
     *,
+    repo_cfg: config.AutoCloudRepoConfig,
     workspace_dir: str,
-    config_path: str,
     event_name: str,
     event_payload: Mapping[str, Any],
     repo_full_name: str,
@@ -152,34 +183,7 @@ def run_action(
     dry_run_github: bool,
     override_changed_files: Sequence[str] = (),
 ) -> int:
-  """Executes the Option 1 AutoCloud GitHub Action workflow.
-
-  Args:
-    workspace_dir: Repository checkout root directory.
-    config_path: Path to `.github/autocloud.yml`.
-    event_name: GitHub webhook event name.
-    event_payload: Decoded GitHub webhook event JSON.
-    repo_full_name: GitHub `owner/repo` string.
-    mcp_url: HTTPS MCP endpoint URL.
-    tokens: Human Google EUC token source.
-    github_client: Authenticated `GitHubClient` (None when `dry_run_github`).
-    dry_run_github: Whether to skip git push and GitHub REST API mutations.
-    override_changed_files: Explicit relative paths for local smoke tests.
-
-  Returns:
-    Process exit code (0 on success).
-  """
-  repo_cfg = config.load_config(config_path)
-
-  if not dry_run_github and not config.should_trigger_code_review(
-      repo_cfg, event_name, event_payload
-  ):
-    logging.info(
-        'Event %s does not match configured code_changes triggers; skipping.',
-        event_name,
-    )
-    return 0
-
+  """Executes Scenario 1: PR Code & IaC Review."""
   pr_number, pr_title, pr_head_branch = _extract_pr_metadata(
       event_name, event_payload
   )
@@ -196,9 +200,11 @@ def run_action(
       )
       if api_title:
         pr_title = api_title
-      if pr_head_branch.startswith(config.COMPANION_BRANCH_PREFIX):
+      if pr_head_branch.startswith(
+          config.COMPANION_BRANCH_PREFIX
+      ) or pr_head_branch.startswith(config.ISSUE_COMPANION_BRANCH_PREFIX):
         logging.info(
-            'PR #%d is a Companion PR (%s); skipping.',
+            'PR #%d is a Cloud Operator PR (%s); skipping.',
             pr_number,
             pr_head_branch,
         )
@@ -345,6 +351,239 @@ def run_action(
   )
   github_client.post_issue_comment(
       repo_full_name, pr_number, comment_with_ctx
+  )
+  return 0
+
+
+def _run_issue_implementation(
+    *,
+    repo_cfg: config.AutoCloudRepoConfig,
+    workspace_dir: str,
+    event_name: str,
+    event_payload: Mapping[str, Any],
+    repo_full_name: str,
+    mcp_url: str,
+    tokens: auth.TokenSource,
+    github_client: github_pr.GitHubClient | None,
+    dry_run_github: bool,
+    override_changed_files: Sequence[str] = (),
+) -> int:
+  """Executes Scenario 2: Issue & Bug Implementation."""
+  issue_number, issue_title, issue_body, issue_labels = _extract_issue_metadata(
+      event_payload
+  )
+  if issue_number <= 0:
+    issue_number = 1
+
+  base_branch = repo_cfg.scenarios.issue_implementation.base_branch
+  companion_branch = github_pr.companion_branch_for_issue(issue_number)
+
+  prior_context_id: str | None = None
+  if not dry_run_github:
+    if github_client is None:
+      raise RuntimeError('github_client is required when dry_run_github=False.')
+    prior_comments = github_client.list_issue_comments(
+        repo_full_name, issue_number
+    )
+    prior_context_id = parser.extract_context_id_marker(prior_comments)
+    if github_client.has_open_companion_pr(
+        repo_full_name=repo_full_name,
+        base_branch=base_branch,
+        companion_branch=companion_branch,
+    ):
+      github_pr.checkout_branch(workspace_dir, companion_branch)
+    else:
+      github_pr.checkout_branch(workspace_dir, base_branch)
+
+  if override_changed_files:
+    repo_files = _read_workspace_files(workspace_dir, override_changed_files)
+  else:
+    repo_files = github_pr.collect_workspace_files(workspace_dir)
+
+  comment_body = (
+      _extract_issue_comment_body(event_payload)
+      if event_name == 'issue_comment'
+      else ''
+  )
+  prompt = mcp_client.build_issue_implementation_prompt(
+      project_id=repo_cfg.project_id,
+      repo_full_name=repo_full_name or 'local/smoke-test',
+      issue_number=issue_number,
+      issue_title=issue_title,
+      issue_body=issue_body,
+      issue_labels=issue_labels,
+      comment_body=comment_body,
+      repo_files=repo_files,
+  )
+
+  answer = mcp_client.ask_cloud_operator(
+      tokens=tokens,
+      mcp_url=mcp_url,
+      project_id=repo_cfg.project_id,
+      agent_id=repo_cfg.agent_id,
+      user_query=prompt,
+      context_id=prior_context_id,
+  )
+
+  remediated = parser.extract_remediated_files(answer.content)
+  clean_summary = parser.strip_inline_comments_json_block(answer.content)
+  logging.info(
+      'Received Cloud Operator issue implementation response (issue=#%d, '
+      'context_id=%s, files=%d).',
+      issue_number,
+      answer.context_id,
+      len(remediated),
+  )
+
+  if dry_run_github:
+    if remediated:
+      written = github_pr.write_remediated_files_safely(
+          workspace_dir, remediated
+      )
+      logging.info('Dry-run wrote implemented files locally: %s', written)
+    logging.info('Dry-run issue summary:\n%s', clean_summary)
+    return 0
+
+  if github_client is None:
+    raise RuntimeError('github_client is required when dry_run_github=False.')
+
+  companion_url = ''
+  if remediated:
+    written = github_pr.write_remediated_files_safely(workspace_dir, remediated)
+    pushed = github_pr.commit_and_push_companion_branch(
+        workspace_dir=workspace_dir,
+        companion_branch=companion_branch,
+        written_paths=written,
+        issue_number=issue_number,
+        push_remote=True,
+    )
+    if pushed:
+      companion_url = github_client.create_or_update_companion_pr(
+          repo_full_name=repo_full_name,
+          source_issue_number=issue_number,
+          issue_title=issue_title,
+          pr_head_branch=base_branch,
+          companion_branch=companion_branch,
+          summary_markdown=clean_summary,
+      )
+
+  issue_reply = clean_summary
+  if companion_url:
+    issue_reply = (
+        f'### Cloud Operator Pull Request Opened: {companion_url}\n\n'
+        f'{issue_reply}'
+    )
+  reply_with_ctx = parser.embed_context_id_marker(
+      issue_reply, answer.context_id
+  )
+  github_client.post_issue_comment(
+      repo_full_name, issue_number, reply_with_ctx
+  )
+  return 0
+
+
+def run_action(
+    *,
+    workspace_dir: str,
+    config_path: str,
+    event_name: str,
+    event_payload: Mapping[str, Any],
+    repo_full_name: str,
+    mcp_url: str,
+    tokens: auth.TokenSource,
+    github_client: github_pr.GitHubClient | None,
+    dry_run_github: bool,
+    override_changed_files: Sequence[str] = (),
+) -> int:
+  """Executes the Cloud Operator GitHub Action workflow.
+
+  Routes incoming GitHub webhook events to either Scenario 1 (`code_changes` PR
+  review) or Scenario 2 (`issue_implementation` feature/bug resolution).
+
+  Args:
+    workspace_dir: Repository checkout root directory.
+    config_path: Path to `.github/cloud-operator.yml`.
+    event_name: GitHub webhook event name.
+    event_payload: Decoded GitHub webhook event JSON.
+    repo_full_name: GitHub `owner/repo` string.
+    mcp_url: HTTPS MCP endpoint URL.
+    tokens: Human Google EUC token source.
+    github_client: Authenticated `GitHubClient` (None when `dry_run_github`).
+    dry_run_github: Whether to skip git push and GitHub REST API mutations.
+    override_changed_files: Explicit relative paths for local smoke tests.
+
+  Returns:
+    Process exit code (0 on success).
+  """
+  repo_cfg = config.load_config(config_path)
+
+  if dry_run_github:
+    issue_obj = event_payload.get('issue')
+    is_plain_issue_comment = (
+        event_name == 'issue_comment'
+        and isinstance(issue_obj, Mapping)
+        and 'pull_request' not in issue_obj
+    )
+    if event_name == 'issues' or is_plain_issue_comment:
+      return _run_issue_implementation(
+          repo_cfg=repo_cfg,
+          workspace_dir=workspace_dir,
+          event_name=event_name,
+          event_payload=event_payload,
+          repo_full_name=repo_full_name,
+          mcp_url=mcp_url,
+          tokens=tokens,
+          github_client=github_client,
+          dry_run_github=dry_run_github,
+          override_changed_files=override_changed_files,
+      )
+    return _run_code_review(
+        repo_cfg=repo_cfg,
+        workspace_dir=workspace_dir,
+        event_name=event_name,
+        event_payload=event_payload,
+        repo_full_name=repo_full_name,
+        mcp_url=mcp_url,
+        tokens=tokens,
+        github_client=github_client,
+        dry_run_github=dry_run_github,
+        override_changed_files=override_changed_files,
+    )
+
+  if config.should_trigger_code_review(repo_cfg, event_name, event_payload):
+    return _run_code_review(
+        repo_cfg=repo_cfg,
+        workspace_dir=workspace_dir,
+        event_name=event_name,
+        event_payload=event_payload,
+        repo_full_name=repo_full_name,
+        mcp_url=mcp_url,
+        tokens=tokens,
+        github_client=github_client,
+        dry_run_github=False,
+        override_changed_files=override_changed_files,
+    )
+
+  if config.should_trigger_issue_implementation(
+      repo_cfg, event_name, event_payload
+  ):
+    return _run_issue_implementation(
+        repo_cfg=repo_cfg,
+        workspace_dir=workspace_dir,
+        event_name=event_name,
+        event_payload=event_payload,
+        repo_full_name=repo_full_name,
+        mcp_url=mcp_url,
+        tokens=tokens,
+        github_client=github_client,
+        dry_run_github=False,
+        override_changed_files=override_changed_files,
+    )
+
+  logging.info(
+      'Event %s does not match enabled Cloud Operator scenario triggers; '
+      'skipping.',
+      event_name,
   )
   return 0
 
