@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloud-operator-github-action"
+version = "0.1.0"
+description = "Cloud Operator GitHub Action & CLI Setup Wizard"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "absl-py>=2.0.0",
+  "PyYAML>=6.0.1",
+  "requests>=2.31.0",
+]
+
+[project.scripts]
+cloud-operator-github-init = "iac_design_review.cli_init:run"
+cloud-operator-github-runner = "iac_design_review.runner_main:run"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["iac_design_review*"]
