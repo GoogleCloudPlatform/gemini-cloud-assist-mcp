@@ -147,17 +147,20 @@ def render_autocloud_config_yaml(
       '      - MEMBER\n'
       '      - COLLABORATOR\n'
       '    allow_fork_prs: false\n\n'
-      '  # Scenario 2: Issue & Bug Implementation '
-      '(WORK IN PROGRESS - Not available yet)\n'
+      '  # Scenario 2: Issue & Bug Implementation\n'
       '  issue_implementation:\n'
-      '    enabled: false\n'
+      '    enabled: true\n'
       '    triggers:\n'
+      '      - issues.opened\n'
       '      - issues.labeled\n'
       '      - issue_comment.created\n'
-      '    trigger_labels:\n'
-      '      - "cloud-operator-implement"\n'
+      '    trigger_labels: []\n'
       '    trigger_command: "/cloud-operator implement"\n'
       '    base_branch: "main"\n'
+      '    allowed_author_associations:\n'
+      '      - OWNER\n'
+      '      - MEMBER\n'
+      '      - COLLABORATOR\n'
   )
   config.parse_config_yaml(yaml_str)
   return yaml_str
@@ -172,6 +175,8 @@ def render_github_workflow_yaml(
       'on:\n'
       '  pull_request:\n'
       '    types: [opened, synchronize, reopened]\n'
+      '  issues:\n'
+      '    types: [opened, labeled]\n'
       '  issue_comment:\n'
       '    types: [created]\n\n'
       'concurrency:\n'
@@ -188,6 +193,7 @@ def render_github_workflow_yaml(
       '    runs-on: ubuntu-latest\n'
       '    if: >-\n'
       "      github.event_name == 'pull_request' ||\n"
+      "      github.event_name == 'issues' ||\n"
       "      (github.event_name == 'issue_comment' &&\n"
       "      contains(github.event.comment.body, '/cloud-operator'))\n"
       '    steps:\n'
@@ -578,7 +584,7 @@ def run_interactive_wizard(
   print('   [1] PR Code & IaC Review (Default: Enabled, Mode: Inline Comments)')
   print(
       '   [2] Issue & Bug Implementation '
-      '[Work in Progress — Not available yet]'
+      '(Default: Enabled, Opens Companion PR)'
   )
   enable_ans = (
       input_fn('   Enable PR Code & IaC Review? [Y/n]: ').strip().lower()

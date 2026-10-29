@@ -1,20 +1,20 @@
 # Cloud Operator — GitHub IaC & Design Review Action
 
-The **Cloud Operator IaC & Design Review Action**
-(`integrations/github/actions/iac-review`) automatically reviews Terraform and
-Infrastructure-as-Code (IaC) changes in your GitHub Pull Requests against Google
-Cloud best practices, security posture, and organization policies.
+The **Cloud Operator GitHub Action** (`integrations/github/actions/iac-review`)
+integrates your GitHub repository with the **Cloud Operator** agent to automate
+two Infrastructure-as-Code (IaC) workflows:
 
-When a developer opens or updates a Pull Request—or comments
-`/cloud-operator review` on a PR—the action sends the modified IaC files to the
-**Cloud Operator** agent and delivers actionable feedback directly in GitHub as:
-
-- **Inline Review Comments (`inline_comments`, default)**: Line-anchored review
-  comments with one-click GitHub code suggestions on the Pull Request diff.
-- **Companion Pull Request (`companion_pr`)**: A dedicated remediation PR
-  targeting the contributor's branch with the complete updated files.
-- **Summary Comment (`comment_only`)**: A single top-level markdown review
-  summary on the Pull Request.
+1. **Pull Request Design & Security Reviews (`scenarios.code_changes`)**:
+   Reviews Terraform and IaC changes in Pull Requests against Google Cloud best
+   practices, security posture, and organization policies—delivering feedback as
+   **Inline Review Comments** (`inline_comments`, default), a **Companion Pull
+   Request** (`companion_pr`), or a **Summary Comment** (`comment_only`).
+2. **Issue-Driven Feature Requests & Bug Fixes
+   (`scenarios.issue_implementation`)**: Implements new IaC features or fixes
+   issues reported in GitHub Issues (on issue creation, label, or
+   `/cloud-operator implement` comment), commits the created or modified files
+   to a dedicated `cloud-operator/issue-<N>` branch, opens a **Companion Pull
+   Request**, and replies on the Issue.
 
 ---
 
@@ -35,13 +35,13 @@ flowchart LR
         Admin["Repo Admin"] -->|"Runs onboarding<br/>setup"| GHSecrets[("GitHub Actions Secrets &<br/>.github/cloud-operator.yml")]
     end
 
-    subgraph Runtime["2. Pull Request Review (Repo User)"]
+    subgraph Runtime["2. PR Reviews & Issue Implementation (Repo User)"]
         direction LR
-        User["Repo User<br/>(PR Creator)"] -->|"Opens PR or comments<br/>/cloud-operator review"| PR["GitHub<br/>Pull Request"]
-        PR -->|"Triggers<br/>workflow"| Action["IaC Design<br/>Review Action"]
-        Action -->|"1. Invokes with<br/>modified IaC files"| Operator["Cloud Operator<br/>Agent"]
-        Operator -->|"2. Returns review &<br/>remediated IaC"| Action
-        Action -->|"3. Publishes inline comments<br/>or Companion PR"| PR
+        User["Repo User"] -->|"Opens PR or<br/>GitHub Issue"| Event["GitHub PR or<br/>Issue"]
+        Event -->|"Triggers<br/>workflow"| Action["Cloud Operator<br/>GitHub Action"]
+        Action -->|"1. Invokes with repo<br/>& PR/Issue context"| Operator["Cloud Operator<br/>Agent"]
+        Operator -->|"2. Returns analysis &<br/>updated IaC files"| Action
+        Action -->|"3. Posts review comments<br/>or opens Companion PR"| Event
     end
 
     GHSecrets -.->|"Provides OAuth credentials<br/>& repo config"| Action
@@ -51,17 +51,21 @@ flowchart LR
    setup once to store Google OAuth credentials in GitHub Actions Secrets
    (`CLOUD_OPERATOR_OAUTH_CONFIG`) and commit the workflow and configuration
    files to the repository.
-2. **Pull Request Trigger**: A contributor opens or updates a Pull Request (or
-   posts `/cloud-operator review` on an existing PR), triggering the **IaC
-   Design Review Action**.
-3. **Cloud Operator Invocation**: The action bundles the modified files in the
-   Pull Request and invokes the **Cloud Operator** agent against the configured
-   Google Cloud project.
-4. **Review Response**: The Cloud Operator evaluates the IaC changes and returns
-   its findings along with suggested remediations.
-5. **Publishing Feedback**: The action parses the response and posts either
-   line-anchored inline comments on the PR, a Companion PR with the remediated
-   files, or a summary comment based on your repository configuration.
+2. **PR or Issue Trigger**:
+   - **Pull Request Review**: A contributor opens or updates a Pull Request (or
+     posts `/cloud-operator review` on an existing PR).
+   - **Issue Implementation**: A user opens or labels a GitHub Issue describing
+     a feature request or bug (or posts `/cloud-operator implement` on an
+     existing Issue).
+3. **Cloud Operator Invocation**: The action bundles the relevant repository IaC
+   files and PR/Issue context and invokes the **Cloud Operator** agent against
+   the configured Google Cloud project.
+4. **Publishing Results**:
+   - For **Pull Requests**, the action posts line-anchored inline comments, a
+     Companion PR, or a summary comment based on `pr_mode`.
+   - For **Issues**, if files are created or modified, the action pushes
+     `cloud-operator/issue-<N>`, opens a Pull Request against `base_branch`
+     (`Closes #<N>`), and posts the summary and PR link on the Issue.
 
 ---
 
@@ -127,10 +131,10 @@ Before onboarding a repository, the **repository administrator** needs:
 
 ---
 
-## Configuring Triggers and Review Modes
+## Configuring Triggers and Scenarios
 
-The behavior of the action is controlled by `.github/cloud-operator.yml` in your
-repository.
+Both Pull Request reviews and Issue implementation can be independently enabled,
+disabled, and customized in `.github/cloud-operator.yml`.
 
 ### Sample `.github/cloud-operator.yml`
 
@@ -143,14 +147,15 @@ project_id: "my-gcp-project-id"
 agent_id: "my-operator-agent"
 
 scenarios:
+  # Scenario 1: Pull Request Code & IaC Review
   code_changes:
     enabled: true
 
-    # Events that trigger a review:
+    # Events that trigger a PR review:
     #   - pull_request.opened: Run when a Pull Request is opened
     #   - pull_request.synchronize: Run when new commits are pushed to the PR
     #   - pull_request.reopened: Run when a closed Pull Request is reopened
-    #   - issue_comment.created: Run when a user comments trigger_command on the PR
+    #   - issue_comment.created: Run when a user comments trigger_command on a PR
     triggers:
       - pull_request.opened
       - pull_request.synchronize
@@ -165,7 +170,7 @@ scenarios:
     #   - comment_only: Posts a single top-level summary comment on the PR
     pr_mode: "inline_comments"
 
-    # GitHub author associations permitted to trigger the action.
+    # GitHub author associations permitted to trigger PR reviews.
     allowed_author_associations:
       - OWNER
       - MEMBER
@@ -173,29 +178,71 @@ scenarios:
 
     # Whether Pull Requests from external repository forks can trigger the action.
     allow_fork_prs: false
+
+  # Scenario 2: Issue-Driven Feature Requests & Bug Fixes
+  issue_implementation:
+    enabled: true
+
+    # Events that trigger Issue implementation:
+    #   - issues.opened: Run when a new GitHub Issue is created
+    #   - issues.labeled: Run when a label is added to an Issue
+    #   - issue_comment.created: Run when a user comments trigger_command on an Issue
+    triggers:
+      - issues.opened
+      - issues.labeled
+      - issue_comment.created
+
+    # Optional label filter for issues.opened and issues.labeled.
+    # Leave empty ([]) to run on all new issues from allowed authors, or specify
+    # labels such as ["bug", "enhancement"] to restrict automatic triggers.
+    trigger_labels: []
+
+    # Slash command that triggers implementation or iteration in an Issue comment.
+    trigger_command: "/cloud-operator implement"
+
+    # Target base branch for Companion PRs created from Issues.
+    base_branch: "main"
+
+    # GitHub author associations permitted to trigger Issue implementation.
+    allowed_author_associations:
+      - OWNER
+      - MEMBER
+      - COLLABORATOR
 ```
 
 ---
 
-## Using the Action (For PR Creators)
+## Using the Action (For Repo Users)
 
-Once a repository is onboarded:
-
+### 1. Reviewing Pull Requests
 1. **Automatic PR Review**: Open a Pull Request modifying Terraform or IaC
-   files. If `pull_request.opened` is enabled, the action automatically runs
-   and posts its review on your PR.
+   files. When `code_changes.enabled` is `true`, the action reviews your changes
+   and posts feedback on the PR.
 2. **On-Demand Review & Follow-Up**: Leave a comment on the Pull Request starting
-   with `/cloud-operator review` (optionally followed by additional context or
-   questions):
+   with `/cloud-operator review` (optionally followed by instructions):
    ```text
    /cloud-operator review
    ```
-3. **Applying Fixes**:
-   - In **`inline_comments`** mode, click **Commit suggestion** (or **Add
-     suggestion to batch**) directly on the inline review comments in the
-     **Files changed** tab.
-   - In **`companion_pr`** mode, review and merge the Companion PR opened by
-     GitHub Actions against your feature branch.
+3. **Applying Fixes**: Commit inline code suggestions directly from the **Files
+   changed** tab (`inline_comments` mode), or merge the Companion PR opened
+   against your branch (`companion_pr` mode).
+
+### 2. Implementing Features & Fixing Bugs from Issues
+1. **Open a GitHub Issue**: Create an Issue describing either a **new IaC
+   feature** you want provisioned or a **bug/policy violation** you want fixed,
+   including as much detail as needed. When `issue_implementation.enabled` is
+   `true` (and any configured `trigger_labels` match), the action runs
+   automatically.
+2. **On-Demand Implementation & Iteration**: Comment on any Issue starting with
+   `/cloud-operator implement` to trigger implementation or request follow-up
+   adjustments on an open Companion PR:
+   ```text
+   /cloud-operator implement please place the Cloud Run service in us-central1
+   ```
+3. **Reviewing the Generated Pull Request**: When the Cloud Operator adds or
+   modifies repository files, the action opens (or updates) a Pull Request from
+   `cloud-operator/issue-<N>` targeting `base_branch` and posts a link on your
+   Issue.
 
 ---
 
@@ -204,8 +251,9 @@ Once a repository is onboarded:
 - **A1 Agent Identity Binding**: This integration relies on A1 Cloud Operator
   agents, which authenticate and execute using the **User End-User Credentials
   (EUC)** and identity of the **onboarding user** (and their configured agent).
-  All Cloud Operator invocations triggered by Pull Requests in the repository
-  run under the onboarding user's Google Cloud identity and permissions.
+  All Cloud Operator invocations triggered by Pull Requests or Issues in the
+  repository run under the onboarding user's Google Cloud identity and
+  permissions.
 - **ADC Session Expiration & Periodic Credential Refresh**: Because the action
   uses the onboarding user's Application Default Credentials (ADC) stored in the
   `CLOUD_OPERATOR_OAUTH_CONFIG` GitHub secret, those credentials are subject to

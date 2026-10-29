@@ -28,6 +28,15 @@ class CliInitTest(absltest.TestCase):
       loaded = config.load_config(cfg_path)
       self.assertEqual(loaded.project_id, 'my-gcp-project')
       self.assertEqual(loaded.agent_id, 'operator-prod')
+      self.assertTrue(loaded.scenarios.issue_implementation.enabled)
+      self.assertEqual(
+          loaded.scenarios.issue_implementation.triggers,
+          ('issues.opened', 'issues.labeled', 'issue_comment.created'),
+      )
+      with open(wf_path, encoding='utf-8') as wf_file:
+        wf_text = wf_file.read()
+      self.assertIn('issues:\n    types: [opened, labeled]', wf_text)
+      self.assertIn("github.event_name == 'issues'", wf_text)
 
     with tempfile.TemporaryDirectory() as tmp_dir_default:
       cfg_path, _ = cli_init.initialize_repository(
@@ -101,6 +110,7 @@ class CliInitTest(absltest.TestCase):
             'issue_comment.created',
         ),
     )
+    self.assertTrue(parsed.scenarios.issue_implementation.enabled)
 
   @mock.patch.object(cli_init, 'ensure_adc_credentials')
   @mock.patch.object(subprocess, 'run')
