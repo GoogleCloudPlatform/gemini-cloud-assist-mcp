@@ -1,6 +1,6 @@
 """HTTPS MCP client and prompt builder for `ask_cloud_operator`."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 import json
 import re
 import urllib.parse
@@ -162,6 +162,89 @@ def build_pr_review_prompt(
       '(for example: ```hcl title="envs/prod/main.tf").\n'
       f'{inline_instr}\n'
       f'## Modified Files in PR #{pr_number}\n\n{bundled_files_str}'
+  )
+
+
+def build_issue_implementation_prompt(
+    *,
+    project_id: str,
+    repo_full_name: str,
+    issue_number: int,
+    issue_title: str,
+    issue_body: str,
+    issue_labels: Sequence[str] = (),
+    comment_body: str = '',
+    repo_files: Mapping[str, str],
+) -> str:
+  """Constructs an unopinionated issue implementation prompt for the operator.
+
+  Passes the user's GitHub issue context (whether a feature request or a bug
+  report), optional follow-up comment, and existing repository files directly to
+  `ask_cloud_operator` so the model can infer intent and emit complete created
+  or modified files for Companion PR creation.
+
+  Args:
+    project_id: Target GCP project ID (e.g., `my-gcp-project`).
+    repo_full_name: GitHub `owner/repo` identifier.
+    issue_number: GitHub Issue number.
+    issue_title: GitHub Issue title.
+    issue_body: GitHub Issue markdown description.
+    issue_labels: Optional sequence of label names attached to the issue.
+    comment_body: Optional follow-up `/cloud-operator implement` comment text.
+    repo_files: Mapping of relative file paths to existing file contents.
+
+  Returns:
+    Formatted prompt string for `ask_cloud_operator`.
+  """
+  cleaned_labels = [lbl.strip() for lbl in issue_labels if lbl.strip()]
+  labels_str = ', '.join(cleaned_labels) if cleaned_labels else 'None'
+  description_text = issue_body.strip() or '_(No description provided.)_'
+
+  comment_section = ''
+  if comment_body.strip():
+    comment_section = (
+        f'### Follow-Up Issue Comment\n{comment_body.strip()}\n\n'
+    )
+
+  if repo_files:
+    file_sections: list[str] = []
+    for rel_path, file_content in repo_files.items():
+      lines = file_content.splitlines()
+      body_text = '\n'.join(lines)
+      max_backticks = max(
+          (len(m.group(0)) for m in _BACKTICK_RUN_RE.finditer(file_content)),
+          default=0,
+      )
+      fence = '`' * max(3, max_backticks + 1)
+      file_sections.append(
+          f'### Existing File: `{rel_path}` ({len(lines)} lines)\n'
+          f'{fence}\n{body_text}\n{fence}'
+      )
+    bundled_files_str = '\n\n'.join(file_sections)
+  else:
+    bundled_files_str = (
+        '_(No existing IaC files found in repository; generate new files as '
+        'needed.)_'
+    )
+
+  return (
+      f'GitHub Issue #{issue_number} in repository `{repo_full_name}` '
+      f'(target Google Cloud project: `{project_id}`).\n\n'
+      '### Issue Details\n'
+      f'- **Title**: {issue_title}\n'
+      f'- **Labels**: {labels_str}\n\n'
+      f'### Issue Description\n{description_text}\n\n'
+      f'{comment_section}'
+      '### Output Format Instructions\n'
+      'Fulfill the request described in the issue above.\n'
+      '1. Provide a clear markdown explanation of your analysis and the '
+      'changes made.\n'
+      '2. If creating new files or modifying existing files in the repository, '
+      'output the COMPLETE file content for each created or modified file '
+      'inside a fenced code block with `title="<relative/path/to/file>"` '
+      '(for example: ```hcl title="main.tf") so the GitHub Action can commit '
+      'the changes and open a Pull Request.\n\n'
+      f'## Existing Repository Files\n\n{bundled_files_str}'
   )
 
 

@@ -19,6 +19,50 @@ _REPO_FULL_NAME_RE = re.compile(r'^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$')
 _HUNK_HEADER_RE = re.compile(
     r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@', re.MULTILINE
 )
+_IGNORED_WORKSPACE_DIRS = frozenset({
+    '.git',
+    '.github',
+    '.terraform',
+    'node_modules',
+    '__pycache__',
+    '.venv',
+    'venv',
+    '.tox',
+    '.mypy_cache',
+    '.pytest_cache',
+    'dist',
+    'build',
+})
+_IGNORED_WORKSPACE_FILENAMES = frozenset({
+    '.terraform.lock.hcl',
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'poetry.lock',
+})
+_PRIMARY_IAC_EXTENSIONS = frozenset({
+    '.tf',
+    '.tfvars',
+    '.hcl',
+    '.tftpl',
+    '.yaml',
+    '.yml',
+    '.json',
+})
+_SECONDARY_TEXT_EXTENSIONS = frozenset({
+    '.sh',
+    '.py',
+    '.go',
+    '.md',
+    '.toml',
+    '.cfg',
+    '.ini',
+    '.tpl',
+})
+_SECONDARY_EXACT_FILENAMES = frozenset({'Dockerfile', 'Makefile'})
+_DEFAULT_MAX_COLLECTED_FILES = 50
+_DEFAULT_MAX_FILE_BYTES = 128 * 1024
+_DEFAULT_MAX_TOTAL_BYTES = 512 * 1024
 
 
 def parse_patch_right_hunks(patch_text: str) -> list[tuple[int, int]]:
@@ -177,6 +221,115 @@ def companion_branch_for_pr(pr_number: int) -> str:
   return f'{config.COMPANION_BRANCH_PREFIX}{pr_number}'
 
 
+def companion_branch_for_issue(issue_number: int) -> str:
+  """Returns the deterministic Companion PR branch name for `issue_number`."""
+  if issue_number <= 0:
+    raise ValueError(f'issue_number must be positive, got {issue_number}')
+  return f'{config.ISSUE_COMPANION_BRANCH_PREFIX}{issue_number}'
+
+
+def collect_workspace_files(
+    workspace_dir: str,
+    *,
+    max_files: int = _DEFAULT_MAX_COLLECTED_FILES,
+    max_file_bytes: int = _DEFAULT_MAX_FILE_BYTES,
+    max_total_bytes: int = _DEFAULT_MAX_TOTAL_BYTES,
+) -> dict[str, str]:
+  """Collects existing IaC and configuration text files from `workspace_dir`.
+
+  Prioritizes Terraform/HCL/YAML/JSON infrastructure files before auxiliary
+  scripts and docs, while skipping `.git`, `.github`, `.terraform`, lockfiles,
+  symlinks, binary files, and oversized files.
+
+  Args:
+    workspace_dir: Local git checkout root directory.
+    max_files: Maximum number of files to collect.
+    max_file_bytes: Maximum size in bytes for any single file.
+    max_total_bytes: Maximum cumulative size in bytes across collected files.
+
+  Returns:
+    Ordered mapping of repository-relative file paths to UTF-8 file contents.
+
+  Raises:
+    ValueError: If `workspace_dir` does not exist.
+  """
+  workspace_real = os.path.realpath(workspace_dir)
+  if not os.path.isdir(workspace_real):
+    raise ValueError(f'Workspace directory does not exist: {workspace_dir!r}')
+
+  candidates: list[tuple[int, str, str, int]] = []
+  for dirpath, dirnames, filenames in os.walk(
+      workspace_real, followlinks=False
+  ):
+    dirnames[:] = sorted(
+        d
+        for d in dirnames
+        if d not in _IGNORED_WORKSPACE_DIRS
+        and not os.path.islink(os.path.join(dirpath, d))
+    )
+    for filename in sorted(filenames):
+      if filename in _IGNORED_WORKSPACE_FILENAMES:
+        continue
+      _, ext = os.path.splitext(filename)
+      ext_lower = ext.lower()
+      if ext_lower in _PRIMARY_IAC_EXTENSIONS:
+        tier = 0
+      elif (
+          ext_lower in _SECONDARY_TEXT_EXTENSIONS
+          or filename in _SECONDARY_EXACT_FILENAMES
+      ):
+        tier = 1
+      else:
+        continue
+
+      candidate_abs = os.path.join(dirpath, filename)
+      if os.path.islink(candidate_abs) or not os.path.isfile(candidate_abs):
+        continue
+      real_abs = os.path.realpath(candidate_abs)
+      if not real_abs.startswith(workspace_real + os.sep):
+        continue
+
+      rel_raw = os.path.relpath(real_abs, workspace_real).replace(os.sep, '/')
+      try:
+        safe_rel = parser.sanitize_relative_repo_path(rel_raw)
+      except ValueError:
+        continue
+
+      try:
+        file_size = os.path.getsize(real_abs)
+      except OSError:
+        continue
+      if file_size > max_file_bytes:
+        logging.warning('Skipping large workspace file (>%dB): %s', max_file_bytes, safe_rel)
+        continue
+
+      candidates.append((tier, safe_rel, real_abs, file_size))
+
+  candidates.sort(key=lambda item: (item[0], item[1]))
+  collected: dict[str, str] = {}
+  total_bytes = 0
+  for _, safe_rel, real_abs, file_size in candidates:
+    if len(collected) >= max_files:
+      break
+    if total_bytes + file_size > max_total_bytes:
+      continue
+    try:
+      with open(real_abs, 'rb') as raw_file:
+        raw_bytes = raw_file.read()
+    except OSError:
+      continue
+    if b'\x00' in raw_bytes:
+      continue
+    try:
+      text_content = raw_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+      continue
+    collected[safe_rel] = text_content
+    total_bytes += file_size
+
+  return collected
+
+
 def write_remediated_files_safely(
     workspace_dir: str,
     remediated_files: Sequence[parser.RemediatedFile],
@@ -258,27 +411,33 @@ def commit_and_push_companion_branch(
     workspace_dir: str,
     companion_branch: str,
     written_paths: Sequence[str],
-    pr_number: int,
+    pr_number: int | None = None,
+    issue_number: int | None = None,
     push_remote: bool = True,
 ) -> bool:
   """Creates/updates the companion branch, commits changes, and pushes.
 
   Args:
     workspace_dir: Local git repository root.
-    companion_branch: Companion branch name (`cloud-operator/remediate-pr-<N>`).
+    companion_branch: Companion branch name (`cloud-operator/remediate-pr-<N>`
+      or `cloud-operator/issue-<N>`).
     written_paths: Relative file paths written by `write_remediated_files_safely`.
-    pr_number: Pull Request number being remediated.
+    pr_number: Optional Pull Request number being remediated.
+    issue_number: Optional Issue number being implemented.
     push_remote: Whether to push the branch to `origin` (False in dry runs).
 
   Returns:
     True if at least one file changed and was committed; False if no diff.
 
   Raises:
-    ValueError: If `companion_branch` or `written_paths` fail validation.
+    ValueError: If `companion_branch`, `written_paths`, or target numbers fail
+      validation.
     GitHubIntegrationError: If any `git` command fails.
   """
   if not written_paths:
     return False
+  if pr_number is None and issue_number is None:
+    raise ValueError('Either pr_number or issue_number must be provided.')
 
   safe_branch = validate_branch_name(companion_branch)
   safe_paths = [parser.sanitize_relative_repo_path(p) for p in written_paths]
@@ -304,18 +463,60 @@ def commit_and_push_companion_branch(
     logging.info('Remediated files match HEAD; skipping companion commit.')
     return False
 
-  commit_msg = (
-      f'fix(cloud-operator): apply IaC review remediations for PR #{pr_number}'
-  )
+  if issue_number is not None:
+    commit_msg = (
+        f'feat(cloud-operator): implement changes for Issue #{issue_number}'
+    )
+  else:
+    commit_msg = (
+        f'fix(cloud-operator): apply IaC review remediations for PR #{pr_number}'
+    )
   _run_git(workspace_dir, ['commit', '-m', commit_msg])
 
   if push_remote:
+    subprocess.run(
+        [
+            'git',
+            'fetch',
+            'origin',
+            f'refs/heads/{safe_branch}:refs/remotes/origin/{safe_branch}',
+        ],
+        cwd=workspace_dir,
+        check=False,
+        shell=False,
+        capture_output=True,
+        text=True,
+    )
     refspec = f'HEAD:refs/heads/{safe_branch}'
     _run_git(
         workspace_dir,
         ['push', '--force-with-lease', 'origin', refspec],
     )
   return True
+
+
+def checkout_branch(workspace_dir: str, branch_name: str) -> None:
+  """Fetches `origin/<branch_name>` and checks out `FETCH_HEAD` detached.
+
+  Args:
+    workspace_dir: Local git repository root.
+    branch_name: Remote branch name on `origin` (e.g., `main` or
+      `cloud-operator/issue-7`).
+
+  Raises:
+    ValueError: If `branch_name` fails branch safety validation.
+    GitHubIntegrationError: If `git fetch` or `git checkout` fails.
+  """
+  safe_branch = validate_branch_name(branch_name)
+  _run_git(
+      workspace_dir,
+      [
+          'fetch',
+          'origin',
+          f'refs/heads/{safe_branch}:refs/remotes/origin/{safe_branch}',
+      ],
+  )
+  _run_git(workspace_dir, ['checkout', '--detach', 'FETCH_HEAD'])
 
 
 def checkout_pr_head(workspace_dir: str, pr_number: int) -> None:
@@ -643,38 +844,92 @@ class GitHubClient:
           safe_repo, pr_number, '\n\n'.join(fallback_sections)
       )
 
+  def has_open_companion_pr(
+      self,
+      *,
+      repo_full_name: str,
+      base_branch: str,
+      companion_branch: str,
+  ) -> bool:
+    """Returns True if an open PR already exists from `companion_branch`."""
+    safe_repo = validate_repo_full_name(repo_full_name)
+    owner = safe_repo.split('/', 1)[0]
+    safe_base = validate_branch_name(base_branch)
+    safe_head = validate_branch_name(companion_branch)
+    existing_prs = self._request_json(
+        'GET',
+        f'/repos/{safe_repo}/pulls',
+        params={
+            'head': f'{owner}:{safe_head}',
+            'base': safe_base,
+            'state': 'open',
+        },
+    )
+    return bool(isinstance(existing_prs, list) and existing_prs)
+
   def create_or_update_companion_pr(
       self,
       *,
       repo_full_name: str,
-      source_pr_number: int,
       pr_head_branch: str,
       companion_branch: str,
       summary_markdown: str,
+      source_pr_number: int | None = None,
+      source_issue_number: int | None = None,
+      issue_title: str = '',
   ) -> str:
-    """Creates or updates the Companion PR targeting the contributor's branch.
+    """Creates or updates a Companion PR for PR remediation or Issue resolution.
 
     Args:
       repo_full_name: GitHub `owner/repo` string.
-      source_pr_number: Original PR number being reviewed.
-      pr_head_branch: Contributor's PR head branch (target `base` of companion).
-      companion_branch: Companion branch (`autocloud/remediate-pr-<N>`).
-      summary_markdown: Markdown summary of findings and remediations.
+      pr_head_branch: Target `base` branch for the PR (contributor's PR branch
+        for reviews, or `base_branch` such as `main` for issue implementation).
+      companion_branch: Head branch (`cloud-operator/remediate-pr-<N>` or
+        `cloud-operator/issue-<N>`).
+      summary_markdown: Markdown summary of findings or implemented changes.
+      source_pr_number: Original PR number being remediated (Scenario 1).
+      source_issue_number: Original Issue number being implemented (Scenario 2).
+      issue_title: Optional GitHub Issue title for Scenario 2 PR titles.
 
     Returns:
       HTML URL of the created or updated Companion PR.
+
+    Raises:
+      ValueError: If neither `source_pr_number` nor `source_issue_number` is
+        provided, or if repository/branch names fail validation.
     """
+    if source_pr_number is None and source_issue_number is None:
+      raise ValueError(
+          'Either source_pr_number or source_issue_number must be provided.'
+      )
     safe_repo = validate_repo_full_name(repo_full_name)
     owner = safe_repo.split('/', 1)[0]
     safe_base = validate_branch_name(pr_head_branch)
     safe_head = validate_branch_name(companion_branch)
 
-    title = f'[Cloud Operator] IaC & Code Remediations for PR #{source_pr_number}'
-    body = (
-        f'Automated Companion PR for #{source_pr_number} generated by '
-        '**Cloud Operator**.\n\n'
-        f'{summary_markdown}'
-    )
+    if source_issue_number is not None:
+      clean_issue_title = ' '.join(issue_title.split())
+      if clean_issue_title:
+        title = (
+            f'[Cloud Operator] Resolve Issue #{source_issue_number}: '
+            f'{clean_issue_title}'
+        )[:240]
+      else:
+        title = f'[Cloud Operator] Resolve Issue #{source_issue_number}'
+      body = (
+          'Automated Pull Request generated by **Cloud Operator**.\n\n'
+          f'Closes #{source_issue_number}\n\n'
+          f'{summary_markdown}'
+      )
+    else:
+      title = (
+          f'[Cloud Operator] IaC & Code Remediations for PR #{source_pr_number}'
+      )
+      body = (
+          f'Automated Companion PR for #{source_pr_number} generated by '
+          '**Cloud Operator**.\n\n'
+          f'{summary_markdown}'
+      )
 
     existing_prs = self._request_json(
         'GET',

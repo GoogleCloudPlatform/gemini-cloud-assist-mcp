@@ -334,6 +334,96 @@ class GitHubPrTest(absltest.TestCase):
     self.assertIn('`main.tf:L8-L12`', sent_json['body'])
     self.assertIn('`main.tf:L13-L18`', sent_json['body'])
 
+  def test_companion_branch_for_issue_and_collect_workspace_files(self):
+    self.assertEqual(
+        github_pr.companion_branch_for_issue(12), 'cloud-operator/issue-12'
+    )
+    with self.assertRaises(ValueError):
+      github_pr.companion_branch_for_issue(0)
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      os.makedirs(os.path.join(tmp_dir, '.github', 'workflows'), exist_ok=True)
+      os.makedirs(os.path.join(tmp_dir, '.terraform'), exist_ok=True)
+      os.makedirs(os.path.join(tmp_dir, 'envs', 'prod'), exist_ok=True)
+
+      with open(
+          os.path.join(tmp_dir, '.github', 'cloud-operator.yml'),
+          'w',
+          encoding='utf-8',
+      ) as f:
+        f.write('version: 1\n')
+      with open(
+          os.path.join(tmp_dir, '.terraform.lock.hcl'), 'w', encoding='utf-8'
+      ) as f:
+        f.write('provider "registry.terraform.io/hashicorp/google" {}\n')
+      with open(
+          os.path.join(tmp_dir, 'README.md'), 'w', encoding='utf-8'
+      ) as f:
+        f.write('# Infra Repo\n')
+      with open(
+          os.path.join(tmp_dir, 'envs', 'prod', 'main.tf'),
+          'w',
+          encoding='utf-8',
+      ) as f:
+        f.write('resource "google_storage_bucket" "b" {}\n')
+      with open(os.path.join(tmp_dir, 'binary.tf'), 'wb') as f:
+        f.write(b'\x00\x01\x02')
+
+      collected = github_pr.collect_workspace_files(tmp_dir)
+      self.assertEqual(
+          list(collected.keys()),
+          ['envs/prod/main.tf', 'README.md'],
+      )
+      self.assertIn('google_storage_bucket', collected['envs/prod/main.tf'])
+
+  @mock.patch.object(requests, 'request', autospec=True)
+  def test_create_or_update_companion_pr_supports_issue_resolution(
+      self, mock_request
+  ):
+    list_resp = mock.MagicMock(status_code=200, text='[]')
+    list_resp.json.return_value = []
+    create_resp = mock.MagicMock(
+        status_code=201,
+        text='{"html_url": "https://github.com/org/repo/pull/105"}',
+    )
+    create_resp.json.return_value = {
+        'html_url': 'https://github.com/org/repo/pull/105'
+    }
+    open_list_resp = mock.MagicMock(status_code=200, text='[{"number": 105}]')
+    open_list_resp.json.return_value = [{'number': 105}]
+    mock_request.side_effect = [list_resp, create_resp, open_list_resp]
+
+    client = github_pr.GitHubClient(github_token='fake-github-token')
+    pr_url = client.create_or_update_companion_pr(
+        repo_full_name='org/repo',
+        source_issue_number=12,
+        issue_title='Add Cloud Armor WAF policy',
+        pr_head_branch='main',
+        companion_branch='cloud-operator/issue-12',
+        summary_markdown='Added Cloud Armor security policy.',
+    )
+
+    self.assertEqual(pr_url, 'https://github.com/org/repo/pull/105')
+    post_call = mock_request.call_args_list[1]
+    self.assertEqual(post_call.kwargs['method'], 'POST')
+    self.assertEqual(post_call.kwargs['json']['base'], 'main')
+    self.assertEqual(
+        post_call.kwargs['json']['head'], 'cloud-operator/issue-12'
+    )
+    self.assertEqual(
+        post_call.kwargs['json']['title'],
+        '[Cloud Operator] Resolve Issue #12: Add Cloud Armor WAF policy',
+    )
+    self.assertIn('Closes #12', post_call.kwargs['json']['body'])
+
+    self.assertTrue(
+        client.has_open_companion_pr(
+            repo_full_name='org/repo',
+            base_branch='main',
+            companion_branch='cloud-operator/issue-12',
+        )
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

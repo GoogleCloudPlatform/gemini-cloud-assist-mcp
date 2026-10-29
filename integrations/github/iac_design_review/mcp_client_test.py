@@ -230,6 +230,56 @@ class McpClientTest(absltest.TestCase):
     self.assertNotIn('1: Example:', companion_prompt)
     self.assertIn('````\nExample:\n```hcl', companion_prompt)
 
+  def test_build_issue_implementation_prompt_bundles_context_and_empty_repos(
+      self,
+  ):
+    with_files_prompt = mcp_client.build_issue_implementation_prompt(
+        project_id='my-gcp-project',
+        repo_full_name='acme/infra',
+        issue_number=15,
+        issue_title='Add Cloud Armor WAF policy to load balancer',
+        issue_body='Please add a Cloud Armor security policy blocking SQLi.',
+        issue_labels=['enhancement', 'security'],
+        comment_body='/cloud-operator implement also rate limit to 1000 rpm',
+        repo_files={
+            'main.tf': 'resource "google_compute_backend_service" "web" {}',
+            'README.md': 'Docs:\n```hcl\nmodule "lb" {}\n```',
+        },
+    )
+    self.assertIn('GitHub Issue #15 in repository `acme/infra`', with_files_prompt)
+    self.assertIn('target Google Cloud project: `my-gcp-project`', with_files_prompt)
+    self.assertIn(
+        '- **Title**: Add Cloud Armor WAF policy to load balancer',
+        with_files_prompt,
+    )
+    self.assertIn('- **Labels**: enhancement, security', with_files_prompt)
+    self.assertIn(
+        'Please add a Cloud Armor security policy blocking SQLi.',
+        with_files_prompt,
+    )
+    self.assertIn('### Follow-Up Issue Comment', with_files_prompt)
+    self.assertIn('rate limit to 1000 rpm', with_files_prompt)
+    self.assertIn('title="<relative/path/to/file>"', with_files_prompt)
+    self.assertNotIn('1: resource', with_files_prompt)
+    self.assertIn('````\nDocs:\n```hcl', with_files_prompt)
+
+    empty_repo_prompt = mcp_client.build_issue_implementation_prompt(
+        project_id='my-gcp-project',
+        repo_full_name='acme/greenfield',
+        issue_number=1,
+        issue_title='Provision private GKE Autopilot cluster',
+        issue_body='',
+        repo_files={},
+    )
+    self.assertIn('- **Labels**: None', empty_repo_prompt)
+    self.assertIn('_(No description provided.)_', empty_repo_prompt)
+    self.assertNotIn('### Follow-Up Issue Comment', empty_repo_prompt)
+    self.assertIn(
+        '_(No existing IaC files found in repository; generate new files as '
+        'needed.)_',
+        empty_repo_prompt,
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
