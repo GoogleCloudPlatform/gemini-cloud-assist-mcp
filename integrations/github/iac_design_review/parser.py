@@ -30,7 +30,9 @@ _CONTEXT_ID_MARKER_RE = re.compile(
 #   3: Fence info string (language tag and optional `title=...` / `:path`)
 #   4: Code block body
 _CODE_BLOCK_SCAN_RE = re.compile(
-    r'(?:(?:^|\n)[ \t]*(?:#{1,6}[ \t]+)?(?:\*\*)?File:\s*(?:\*\*)?[ \t]*'
+    r'(?:(?:^|\n)[ \t]*(?:#{1,6}[ \t]+)?(?:\*\*)?'
+    r'(?:(?:[Cc]omplete|[Rr]emediated|[Uu]pdated|[Mm]odified)[ \t]+)*'
+    r'[Ff]ile:\s*(?:\*\*)?[ \t]*'
     r'\[?`?([^`\]\(\)\r\n*]+?)`?\]?(?:\([^\)]*\))?[ \t]*(?:\*\*)?:?[ \t]*\r?\n+)?'
     r'(`{3,})([^\n`]*)\r?\n(.*?\r?\n)[ \t]*\2[ \t]*(?=\r?\n|$)',
     re.DOTALL,
@@ -97,6 +99,26 @@ _OUTER_CODE_FENCE_RE = re.compile(
 )
 
 _LINE_NUMBER_PREFIX_RE = re.compile(r'^\s*\d+:\s?(.*)$')
+
+_SUGGESTION_FENCE_EXTRACT_RE = re.compile(
+    r'((`{3,})suggestion\r?\n.*?\r?\n[ \t]*\2)',
+    re.DOTALL,
+)
+
+# Matches trailing or empty section headings/introductory lines that only
+# introduced stripped remediated file code blocks.
+_DANGLING_REMEDIATED_INTRO_RE = re.compile(
+    r'(?:^|\n)[ \t]*(?:'
+    r'(?:#{1,6}[ \t]+|\*\*\s*|\d+\.\s+\*\*|\d+\.\s+)?'
+    r'(?:Complete[ \t]+)?'
+    r'(?:Remediated|Updated|Modified|Implemented|Generated)[ \t]+'
+    r'(?:Repository[ \t]+|IaC[ \t]+|Terraform[ \t]+)*'
+    r'(?:File|Files|Code|Content|Configuration|Terraform)[^\n]*'
+    r'|Here[ \t]+(?:is|are)[ \t]+the[ \t]+(?:complete[ \t]+)?'
+    r'(?:remediated|updated|modified|implemented)[ \t]+[^\n:]*:'
+    r')[ \t]*(?=\n+#{1,6}[ \t]|\s*$)',
+    re.IGNORECASE,
+)
 
 _FAILED_TASK_STATES = frozenset({'FAILED', 'CANCELLED', 'REJECTED'})
 
@@ -444,37 +466,21 @@ def _join_grouped_blocks(
   return results
 
 
-def extract_remediated_files(markdown_text: str) -> list[RemediatedFile]:
-  """Extracts remediated file blocks from the AutoCloud Operator's response.
-
-  Scans all fenced code blocks in document order using a 3-tier strategy
-  aligned with `adcscorer.go`:
-    1. Explicitly named file blocks via inline fence attributes (`title="..."`,
-       `file=...`, `path=...`, `:path`), preceding `File:` headings/labels
-       (`### File: main.tf`, `**File:** `main.tf``), or a first-line `# File:`
-       comment inside the code block.
-    2. Fenced `hcl`/`terraform`/`tf` blocks containing Terraform syntax
-       (defaulting to `main.tf` when no file name is specified).
-    3. Generic/untagged fenced blocks containing Terraform syntax keywords
-       (defaulting to `main.tf`).
-
-  Unsafe paths are skipped. When multiple blocks target the same file path,
-  their contents are joined in order of appearance.
-
-  Args:
-    markdown_text: Full markdown response from `ask_cloud_operator`.
-
-  Returns:
-    Ordered list of validated `RemediatedFile` objects.
-  """
+def _scan_remediated_files_with_spans(
+    markdown_text: str,
+) -> tuple[list[RemediatedFile], list[tuple[int, int]]]:
+  """Scans `markdown_text` and returns `(remediated_files, block_spans)`."""
   explicit_grouped: dict[str, list[str]] = {}
   explicit_order: list[str] = []
+  explicit_spans: list[tuple[int, int]] = []
 
   tf_tagged_grouped: dict[str, list[str]] = {}
   tf_tagged_order: list[str] = []
+  tf_tagged_spans: list[tuple[int, int]] = []
 
   candidate_grouped: dict[str, list[str]] = {}
   candidate_order: list[str] = []
+  candidate_spans: list[tuple[int, int]] = []
 
   for match in _CODE_BLOCK_SCAN_RE.finditer(markdown_text):
     preceding_file = (match.group(1) or '').strip()
@@ -502,6 +508,7 @@ def extract_remediated_files(markdown_text: str) -> list[RemediatedFile]:
     if not code_body.strip():
       continue
 
+    span = (match.start(), match.end())
     if raw_path:
       try:
         safe_path = sanitize_relative_repo_path(raw_path)
@@ -511,26 +518,65 @@ def extract_remediated_files(markdown_text: str) -> list[RemediatedFile]:
         explicit_order.append(safe_path)
         explicit_grouped[safe_path] = []
       explicit_grouped[safe_path].append(code_body)
+      explicit_spans.append(span)
     elif lang_token in _TERRAFORM_TAGS:
       if _TERRAFORM_KEYWORDS_RE.search(code_body):
         if 'main.tf' not in tf_tagged_grouped:
           tf_tagged_order.append('main.tf')
           tf_tagged_grouped['main.tf'] = []
         tf_tagged_grouped['main.tf'].append(code_body)
+        tf_tagged_spans.append(span)
     elif lang_token not in _NON_TERRAFORM_TAGS:
       if _TERRAFORM_KEYWORDS_RE.search(code_body):
         if 'main.tf' not in candidate_grouped:
           candidate_order.append('main.tf')
           candidate_grouped['main.tf'] = []
         candidate_grouped['main.tf'].append(code_body)
+        candidate_spans.append(span)
 
   if explicit_order:
-    return _join_grouped_blocks(explicit_grouped, explicit_order)
+    return (
+        _join_grouped_blocks(explicit_grouped, explicit_order),
+        explicit_spans,
+    )
   if tf_tagged_order:
-    return _join_grouped_blocks(tf_tagged_grouped, tf_tagged_order)
+    return (
+        _join_grouped_blocks(tf_tagged_grouped, tf_tagged_order),
+        tf_tagged_spans,
+    )
   if candidate_order:
-    return _join_grouped_blocks(candidate_grouped, candidate_order)
-  return []
+    return (
+        _join_grouped_blocks(candidate_grouped, candidate_order),
+        candidate_spans,
+    )
+  return [], []
+
+
+def extract_remediated_files(markdown_text: str) -> list[RemediatedFile]:
+  """Extracts remediated file blocks from the AutoCloud Operator's response.
+
+  Scans all fenced code blocks in document order using a 3-tier strategy
+  aligned with `adcscorer.go`:
+    1. Explicitly named file blocks via inline fence attributes (`title="..."`,
+       `file=...`, `path=...`, `:path`), preceding `File:` headings/labels
+       (`### File: main.tf`, `**File:** `main.tf``), or a first-line `# File:`
+       comment inside the code block.
+    2. Fenced `hcl`/`terraform`/`tf` blocks containing Terraform syntax
+       (defaulting to `main.tf` when no file name is specified).
+    3. Generic/untagged fenced blocks containing Terraform syntax keywords
+       (defaulting to `main.tf`).
+
+  Unsafe paths are skipped. When multiple blocks target the same file path,
+  their contents are joined in order of appearance.
+
+  Args:
+    markdown_text: Full markdown response from `ask_cloud_operator`.
+
+  Returns:
+    Ordered list of validated `RemediatedFile` objects.
+  """
+  files, _ = _scan_remediated_files_with_spans(markdown_text)
+  return files
 
 
 def extract_inline_comments(markdown_text: str) -> list[InlineReviewComment]:
@@ -679,6 +725,23 @@ def build_inline_comments_from_remediated_files(
   for rem in remediated_files:
     orig_text = original_files.get(rem.path)
     if orig_text is None:
+      rem_lines = rem.content.splitlines()
+      if not rem_lines:
+        continue
+      end_line = len(rem_lines)
+      start_line = 1 if end_line > 1 else None
+      sugg_body = (
+          f'**Cloud Operator Suggested File (`{rem.path}`):**\n'
+          f'```suggestion\n{rem.content.strip()}\n```'
+      )
+      inline_comments.append(
+          InlineReviewComment(
+              path=rem.path,
+              line=end_line,
+              body=sugg_body,
+              start_line=start_line,
+          )
+      )
       continue
     orig_lines = orig_text.splitlines()
     rem_lines = rem.content.splitlines()
@@ -734,10 +797,116 @@ def build_inline_comments_from_remediated_files(
   return inline_comments
 
 
+def merge_inline_comments(
+    explicit_comments: Sequence[InlineReviewComment],
+    diff_comments: Sequence[InlineReviewComment],
+) -> list[InlineReviewComment]:
+  """Merges explicit JSON inline comments with diff-derived file suggestions.
+
+  Retains all `explicit_comments` and appends any `diff_comments` whose file and
+  line range do not overlap an existing explicit comment. This ensures that code
+  changes in a remediated file (such as remediations outside the PR commit's
+  diff hunks) are still captured even when the agent also emitted explicit
+  inline comments on other lines of the same file.
+
+  Args:
+    explicit_comments: Inline comments parsed from
+      `cloud-operator-inline-comments`.
+    diff_comments: Inline comments computed by diffing remediated file blocks.
+
+  Returns:
+    Combined list of `InlineReviewComment` objects.
+  """
+  merged: list[InlineReviewComment] = list(explicit_comments)
+  diff_to_exp: list[list[int]] = [[] for _ in range(len(diff_comments))]
+  exp_to_diff: list[list[int]] = [[] for _ in range(len(explicit_comments))]
+
+  for d_idx, diff_cmt in enumerate(diff_comments):
+    diff_start = (
+        diff_cmt.start_line if diff_cmt.start_line is not None else diff_cmt.line
+    )
+    diff_end = diff_cmt.line
+    for e_idx, exp_cmt in enumerate(explicit_comments):
+      if exp_cmt.path != diff_cmt.path:
+        continue
+      exp_start = (
+          exp_cmt.start_line if exp_cmt.start_line is not None else exp_cmt.line
+      )
+      exp_end = exp_cmt.line
+      if max(exp_start, diff_start) <= min(exp_end, diff_end):
+        diff_to_exp[d_idx].append(e_idx)
+        exp_to_diff[e_idx].append(d_idx)
+
+  for d_idx, diff_cmt in enumerate(diff_comments):
+    overlapping_exps = diff_to_exp[d_idx]
+    if not overlapping_exps:
+      merged.append(diff_cmt)
+      continue
+
+    if len(overlapping_exps) == 1:
+      e_idx = overlapping_exps[0]
+      if len(exp_to_diff[e_idx]) == 1:
+        exp_cmt = merged[e_idx]
+        if (
+            '```suggestion' not in exp_cmt.body
+            and '```suggestion' in diff_cmt.body
+        ):
+          sugg_match = _SUGGESTION_FENCE_EXTRACT_RE.search(diff_cmt.body)
+          if sugg_match:
+            merged[e_idx] = InlineReviewComment(
+                path=exp_cmt.path,
+                line=diff_cmt.line,
+                start_line=diff_cmt.start_line,
+                body=f'{exp_cmt.body.rstrip()}\n\n{sugg_match.group(1)}',
+            )
+
+  return merged
+
+
 def strip_inline_comments_json_block(markdown_text: str) -> str:
   """Removes the machine-readable `cloud-operator-inline-comments` block."""
   cleaned = _INLINE_COMMENTS_BLOCK_RE.sub('', markdown_text).strip()
   return cleaned or markdown_text.strip()
+
+
+def strip_remediated_file_blocks(markdown_text: str) -> str:
+  """Removes extracted full-file remediated code blocks from comment markdown.
+
+  Since full-file remediations are delivered either as a Companion PR diff or as
+  line-anchored inline code suggestions, stripping the full-file code blocks
+  from the PR/Issue comment body keeps the comment concise while preserving
+  narrative explanations and non-file snippets (such as `bash` or `mermaid`).
+
+  Args:
+    markdown_text: Markdown response from `ask_cloud_operator`.
+
+  Returns:
+    Cleaned markdown text with full-file remediated code blocks removed.
+  """
+  _, spans = _scan_remediated_files_with_spans(markdown_text)
+  if not spans:
+    return markdown_text.strip()
+
+  pieces: list[str] = []
+  cursor = 0
+  for start, end in spans:
+    cut_start = start
+    if cut_start > cursor and markdown_text[cut_start] == '\n':
+      cut_start += 1
+    pieces.append(markdown_text[cursor:cut_start])
+    cursor = end
+  pieces.append(markdown_text[cursor:])
+  cleaned = ''.join(pieces)
+
+  # Strip dangling headings/intro lines that only introduced the removed blocks.
+  while True:
+    updated = _DANGLING_REMEDIATED_INTRO_RE.sub('', cleaned)
+    if updated == cleaned:
+      break
+    cleaned = updated
+
+  cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+  return cleaned or 'Applied remediated file changes.'
 
 
 def embed_context_id_marker(

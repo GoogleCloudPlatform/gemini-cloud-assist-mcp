@@ -273,15 +273,12 @@ def _run_code_review(
 
   remediated = parser.extract_remediated_files(answer.content)
   explicit_inline = parser.extract_inline_comments(answer.content)
-  covered_paths = {item.path for item in explicit_inline}
-  unmatched_remediated = [
-      rem for rem in remediated if rem.path not in covered_paths
-  ]
   diff_inline = parser.build_inline_comments_from_remediated_files(
-      changed_files, unmatched_remediated
+      changed_files, remediated
   )
+  merged_inline = parser.merge_inline_comments(explicit_inline, diff_inline)
   all_inline = parser.clamp_inline_comments_to_files(
-      [*explicit_inline, *diff_inline], changed_files
+      merged_inline, changed_files
   )
 
   logging.info(
@@ -293,7 +290,8 @@ def _run_code_review(
       len(remediated),
   )
 
-  clean_summary = parser.strip_inline_comments_json_block(answer.content)
+  raw_summary = parser.strip_inline_comments_json_block(answer.content)
+  stripped_summary = parser.strip_remediated_file_blocks(raw_summary)
 
   if dry_run_github:
     if remediated:
@@ -302,7 +300,7 @@ def _run_code_review(
       )
       logging.info('Dry-run wrote remediated files locally: %s', written)
     logging.info('Dry-run inline comments count: %d', len(all_inline))
-    logging.info('Dry-run review summary:\n%s', clean_summary)
+    logging.info('Dry-run review summary:\n%s', stripped_summary)
     return 0
 
   if github_client is None:
@@ -310,7 +308,7 @@ def _run_code_review(
 
   if pr_mode == 'inline_comments':
     review_body_with_ctx = parser.embed_context_id_marker(
-        clean_summary, answer.context_id
+        stripped_summary, answer.context_id
     )
     github_client.post_pr_review(
         repo_full_name,
@@ -337,10 +335,10 @@ def _run_code_review(
           source_pr_number=pr_number,
           pr_head_branch=pr_head_branch,
           companion_branch=companion_branch,
-          summary_markdown=clean_summary,
+          summary_markdown=stripped_summary,
       )
 
-  comment_body = clean_summary
+  comment_body = stripped_summary if companion_url else raw_summary
   if companion_url:
     comment_body = (
         f'### Cloud Operator Companion PR Opened: {companion_url}\n\n'
@@ -426,7 +424,8 @@ def _run_issue_implementation(
   )
 
   remediated = parser.extract_remediated_files(answer.content)
-  clean_summary = parser.strip_inline_comments_json_block(answer.content)
+  raw_summary = parser.strip_inline_comments_json_block(answer.content)
+  stripped_summary = parser.strip_remediated_file_blocks(raw_summary)
   logging.info(
       'Received Cloud Operator issue implementation response (issue=#%d, '
       'context_id=%s, files=%d).',
@@ -441,7 +440,7 @@ def _run_issue_implementation(
           workspace_dir, remediated
       )
       logging.info('Dry-run wrote implemented files locally: %s', written)
-    logging.info('Dry-run issue summary:\n%s', clean_summary)
+    logging.info('Dry-run issue summary:\n%s', stripped_summary)
     return 0
 
   if github_client is None:
@@ -464,10 +463,10 @@ def _run_issue_implementation(
           issue_title=issue_title,
           pr_head_branch=base_branch,
           companion_branch=companion_branch,
-          summary_markdown=clean_summary,
+          summary_markdown=stripped_summary,
       )
 
-  issue_reply = clean_summary
+  issue_reply = stripped_summary if companion_url else raw_summary
   if companion_url:
     issue_reply = (
         f'### Cloud Operator Pull Request Opened: {companion_url}\n\n'

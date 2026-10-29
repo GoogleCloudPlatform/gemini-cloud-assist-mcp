@@ -330,6 +330,102 @@ class ParserTest(absltest.TestCase):
     self.assertEqual(clamped[0].start_line, 19)
     self.assertEqual(clamped[0].line, 23)
 
+  def test_strip_remediated_file_blocks_removes_file_blocks_and_preserves_other_blocks(
+      self,
+  ):
+    markdown = (
+        '### Summary of Findings\n'
+        '1. Enable uniform bucket-level access.\n\n'
+        'Run the following command to verify:\n'
+        '```bash\n'
+        'gcloud storage buckets describe gs://my-bucket\n'
+        '```\n\n'
+        '### Complete Remediated Files\n'
+        'Here is the complete remediated content for `main.tf`:\n\n'
+        '```hcl title="main.tf"\n'
+        'resource "google_storage_bucket" "b" {\n'
+        '  uniform_bucket_level_access = true\n'
+        '}\n'
+        '```\n\n'
+        'Here is the updated file for `variables.tf`:\n'
+        '### Updated File: `variables.tf`\n'
+        '```hcl\n'
+        'variable "project_id" {\n'
+        '  type = string\n'
+        '}\n'
+        '```\n'
+    )
+    stripped = parser.strip_remediated_file_blocks(markdown)
+    self.assertIn('### Summary of Findings', stripped)
+    self.assertIn('gcloud storage buckets describe gs://my-bucket', stripped)
+    self.assertNotIn('title="main.tf"', stripped)
+    self.assertNotIn('uniform_bucket_level_access = true', stripped)
+    self.assertNotIn('variable "project_id"', stripped)
+    self.assertNotIn('### Complete Remediated Files', stripped)
+    self.assertNotIn('Here is the complete remediated content', stripped)
+    self.assertNotIn('Here is the updated file', stripped)
+
+  def test_merge_inline_comments_preserves_non_overlapping_remediated_diffs(
+      self,
+  ):
+    explicit = [
+        parser.InlineReviewComment(
+            path='main.tf',
+            line=3,
+            body='Enable uniform bucket-level access on the new bucket.',
+        ),
+        parser.InlineReviewComment(
+            path='variables.tf',
+            start_line=1,
+            line=20,
+            body='Broad comment covering lines 1 to 20.',
+        ),
+    ]
+    diff_derived = [
+        parser.InlineReviewComment(
+            path='main.tf',
+            line=3,
+            body=(
+                '**Cloud Operator Suggested Remediation:**\n'
+                '```suggestion\n  uniform_bucket_level_access = true\n```'
+            ),
+        ),
+        parser.InlineReviewComment(
+            path='main.tf',
+            line=15,
+            body=(
+                '**Cloud Operator Suggested Remediation:**\n'
+                '```suggestion\n  public_access_prevention = "enforced"\n```'
+            ),
+        ),
+        parser.InlineReviewComment(
+            path='variables.tf',
+            line=3,
+            body='```suggestion\n  default = "a"\n```',
+        ),
+        parser.InlineReviewComment(
+            path='variables.tf',
+            line=15,
+            body='```suggestion\n  default = "b"\n```',
+        ),
+    ]
+    merged = parser.merge_inline_comments(explicit, diff_derived)
+    self.assertLen(merged, 3)
+    self.assertEqual(merged[0].line, 3)
+    self.assertIn(
+        'Enable uniform bucket-level access on the new bucket.',
+        merged[0].body,
+    )
+    self.assertIn('uniform_bucket_level_access = true', merged[0].body)
+    # 1-to-2 overlap on variables.tf preserves original broad range 1..20.
+    self.assertEqual(merged[1].path, 'variables.tf')
+    self.assertEqual(merged[1].start_line, 1)
+    self.assertEqual(merged[1].line, 20)
+    self.assertNotIn('```suggestion', merged[1].body)
+    # Non-overlapping diff on main.tf line 15 is appended.
+    self.assertEqual(merged[2].line, 15)
+    self.assertIn('public_access_prevention = "enforced"', merged[2].body)
+
 
 if __name__ == '__main__':
   absltest.main()

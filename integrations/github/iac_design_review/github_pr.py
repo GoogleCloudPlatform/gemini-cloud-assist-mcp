@@ -87,6 +87,8 @@ def parse_patch_right_hunks(patch_text: str) -> list[tuple[int, int]]:
 def _align_comment_to_hunks(
     entry: dict[str, Any],
     hunks: Sequence[tuple[int, int]],
+    *,
+    is_added_file: bool = False,
 ) -> dict[str, Any] | None:
   """Aligns and clamps a serialized inline comment dict to valid PR diff hunks.
 
@@ -97,6 +99,8 @@ def _align_comment_to_hunks(
   Args:
     entry: Serialized GitHub review comment dictionary.
     hunks: Valid right-side `(start_line, end_line)` hunks for `entry['path']`.
+    is_added_file: True if `entry['path']` was newly added in the PR (`status ==
+      "added"`), meaning `(1, max_hunk_line)` covers the entire file.
 
   Returns:
     Aligned comment dictionary ready for GitHub's API, or None if the comment
@@ -112,7 +116,7 @@ def _align_comment_to_hunks(
   max_hunk_line = max(h_end for _, h_end in hunks)
 
   if line > max_hunk_line:
-    if hunks == [(1, max_hunk_line)]:
+    if is_added_file and hunks == [(1, max_hunk_line)]:
       overshoot = line - max_hunk_line
       if (
           has_suggestion
@@ -569,6 +573,7 @@ class GitHubClient:
     self._pr_diff_hunks: dict[
         tuple[str, int], dict[str, list[tuple[int, int]]]
     ] = {}
+    self._pr_added_files: dict[tuple[str, int], set[str]] = {}
     self._pr_is_fork: dict[tuple[str, int], bool] = {}
 
   def _headers(self) -> dict[str, str]:
@@ -669,10 +674,12 @@ class GitHubClient:
 
     paths: list[str] = []
     hunks_by_path: dict[str, list[tuple[int, int]]] = {}
+    added_files: set[str] = set()
     for entry in items:
       if not isinstance(entry, dict):
         continue
-      if entry.get('status') == 'removed':
+      status = str(entry.get('status', '') or '')
+      if status == 'removed':
         continue
       filename = str(entry.get('filename', ''))
       try:
@@ -680,11 +687,14 @@ class GitHubClient:
       except ValueError:
         continue
       paths.append(safe_path)
+      if status == 'added':
+        added_files.add(safe_path)
       patch_str = str(entry.get('patch', '') or '')
       if patch_str:
         hunks_by_path[safe_path] = parse_patch_right_hunks(patch_str)
 
     self._pr_diff_hunks[(safe_repo, pr_number)] = hunks_by_path
+    self._pr_added_files[(safe_repo, pr_number)] = added_files
     return paths
 
   def list_issue_comments(
@@ -782,12 +792,17 @@ class GitHubClient:
       serialized_comments.append(entry)
 
     hunks_by_path = self._pr_diff_hunks.get((safe_repo, pr_number))
+    added_files = self._pr_added_files.get((safe_repo, pr_number), set())
     in_diff_comments: list[dict[str, Any]] = []
     out_of_diff_comments: list[dict[str, Any]] = []
     if hunks_by_path is not None:
       for entry in serialized_comments:
         file_hunks = hunks_by_path.get(entry['path'], [])
-        aligned = _align_comment_to_hunks(entry, file_hunks)
+        aligned = _align_comment_to_hunks(
+            entry,
+            file_hunks,
+            is_added_file=(entry['path'] in added_files),
+        )
         if aligned is not None:
           in_diff_comments.append(aligned)
         else:
@@ -797,6 +812,13 @@ class GitHubClient:
 
     review_body = body
     if out_of_diff_comments:
+      context_id = parser.extract_context_id_marker([review_body])
+      if context_id:
+        review_body = re.sub(
+            r'\s*<!--\s*cloud-operator-context-id:\s*[a-zA-Z0-9_./:-]+\s*-->\s*$',
+            '',
+            review_body,
+        ).rstrip()
       extra_sections = [
           review_body,
           '---\n\n### Additional Findings (Outside PR Diff Hunks)',
@@ -808,7 +830,9 @@ class GitHubClient:
             else f"{cmt['path']}:L{cmt['line']}"
         )
         extra_sections.append(f"#### `{loc}`\n{cmt['body']}")
-      review_body = '\n\n'.join(extra_sections)
+      review_body = '\n\n'.join(s for s in extra_sections if s)
+      if context_id:
+        review_body = parser.embed_context_id_marker(review_body, context_id)
 
     review_payload: dict[str, Any] = {
         'event': 'COMMENT',

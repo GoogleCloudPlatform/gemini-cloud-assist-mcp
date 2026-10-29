@@ -424,6 +424,79 @@ class GitHubPrTest(absltest.TestCase):
         )
     )
 
+  @mock.patch.object(requests, 'request', autospec=True)
+  def test_post_pr_review_highlights_out_of_hunk_changes_on_modified_file_starting_at_line_1(
+      self, mock_request
+  ):
+    files_resp = mock.MagicMock(status_code=200, text='[...]')
+    files_resp.json.return_value = [
+        {
+            'filename': 'main.tf',
+            'status': 'modified',
+            'patch': '@@ -1,4 +1,4 @@\n+resource "a" "b" {}',
+        },
+    ]
+    review_resp = mock.MagicMock(
+        status_code=200,
+        text=(
+            '{"html_url": '
+            '"https://github.com/org/repo/pull/3#pullrequestreview-11"}'
+        ),
+    )
+    review_resp.json.return_value = {
+        'html_url': 'https://github.com/org/repo/pull/3#pullrequestreview-11'
+    }
+    mock_request.side_effect = [files_resp, review_resp]
+
+    client = github_pr.GitHubClient(github_token='fake-github-token')
+    client.list_pr_changed_files('org/repo', 3)
+
+    body_with_ctx = parser.embed_context_id_marker(
+        'Summary of findings.', 'ctx-pr-3'
+    )
+    client.post_pr_review(
+        repo_full_name='org/repo',
+        pr_number=3,
+        body=body_with_ctx,
+        inline_comments=[
+            parser.InlineReviewComment(
+                path='main.tf',
+                line=2,
+                body='In-hunk fix.\n```suggestion\nin_hunk = true\n```',
+            ),
+            parser.InlineReviewComment(
+                path='main.tf',
+                start_line=10,
+                line=12,
+                body=(
+                    'Out-of-hunk suggestion.\n'
+                    '```suggestion\nout_of_hunk = true\n```'
+                ),
+            ),
+        ],
+    )
+
+    sent_json = mock_request.call_args_list[1].kwargs['json']
+    self.assertEqual(
+        sent_json['comments'],
+        [
+            {
+                'path': 'main.tf',
+                'line': 2,
+                'side': 'RIGHT',
+                'body': 'In-hunk fix.\n```suggestion\nin_hunk = true\n```',
+            }
+        ],
+    )
+    self.assertIn(
+        '### Additional Findings (Outside PR Diff Hunks)', sent_json['body']
+    )
+    self.assertIn('`main.tf:L10-L12`', sent_json['body'])
+    self.assertIn('out_of_hunk = true', sent_json['body'])
+    self.assertTrue(
+        sent_json['body'].endswith('<!-- cloud-operator-context-id: ctx-pr-3 -->')
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
