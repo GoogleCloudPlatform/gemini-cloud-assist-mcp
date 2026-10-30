@@ -307,8 +307,10 @@ def _run_code_review(
     raise RuntimeError('github_client is required when dry_run_github=False.')
 
   if pr_mode == 'inline_comments':
-    review_body_with_ctx = parser.embed_context_id_marker(
-        stripped_summary, answer.context_id
+    review_body_with_ctx = parser.format_pr_review_summary(
+        stripped_summary,
+        answer.context_id,
+        has_inline_comments=bool(all_inline),
     )
     github_client.post_pr_review(
         repo_full_name,
@@ -344,8 +346,8 @@ def _run_code_review(
         f'### Cloud Operator Companion PR Opened: {companion_url}\n\n'
         f'{comment_body}'
     )
-  comment_with_ctx = parser.embed_context_id_marker(
-      comment_body, answer.context_id
+  comment_with_ctx = parser.format_pr_review_summary(
+      comment_body, answer.context_id, has_inline_comments=False
   )
   github_client.post_issue_comment(
       repo_full_name, pr_number, comment_with_ctx

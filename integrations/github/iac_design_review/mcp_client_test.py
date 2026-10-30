@@ -210,6 +210,16 @@ class McpClientTest(absltest.TestCase):
         'IaC Review: Review Terraform against Google Best Practices',
         inline_prompt,
     )
+    self.assertIn(
+        '### Autocloud identified <N> risks in your Terraform', inline_prompt
+    )
+    self.assertIn(
+        '| Severity | Category | Finding & Affected Locations | Guidelines |',
+        inline_prompt,
+    )
+    self.assertIn('`⚠️ Disruptive`', inline_prompt)
+    self.assertIn('`🛠️ Action Required`', inline_prompt)
+    self.assertIn('✅ **No issues found**', inline_prompt)
     self.assertNotIn('docs/AGENTS.md', inline_prompt)
     self.assertIn('cloud-operator-inline-comments', inline_prompt)
     self.assertIn(

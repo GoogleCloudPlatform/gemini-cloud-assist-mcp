@@ -139,6 +139,14 @@ class RunnerMainTest(absltest.TestCase):
       pos_args, kwargs = mock_gh.post_pr_review.call_args
       posted_review_body = pos_args[2]
       self.assertIn('### Findings', posted_review_body)
+      self.assertIn(
+          'ℹ️ **Run / Session ID:** `ctx-inline-1`', posted_review_body
+      )
+      self.assertIn(
+          '👇 **Detailed inline comments and 1-click code suggestions are '
+          'added on the affected files below.**',
+          posted_review_body,
+      )
       self.assertNotIn('title="main.tf"', posted_review_body)
       self.assertNotIn('resource "google_storage_bucket"', posted_review_body)
       self.assertLen(kwargs['inline_comments'], 1)

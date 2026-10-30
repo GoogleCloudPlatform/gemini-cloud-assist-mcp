@@ -426,6 +426,73 @@ class ParserTest(absltest.TestCase):
     self.assertEqual(merged[2].line, 15)
     self.assertIn('public_access_prevention = "enforced"', merged[2].body)
 
+  def test_format_pr_review_summary_populates_session_footer_and_strips_duplicates(
+      self,
+  ):
+    raw_summary = (
+        '### Autocloud identified 2 risks in your Terraform\n\n'
+        '✅ **[Test passed]** The proposed fixes are validated against '
+        '**Terraform v1.8.2 Validate and Plan** in an isolated sandbox.\n\n'
+        '| Severity | Category | Finding & Affected Locations | Guidelines |\n'
+        '| :--- | :--- | :--- | :--- |\n'
+        '| 🔴 **High** | 🔒 Security | **#1. Restrict Cloud Run ingress** '
+        '`⚠️ Disruptive` | **Org Policy** |\n\n'
+        '### Organization Policy Assessment Note\n'
+        'Evaluation returned `DEGRADED` (`POLICY_RETRIEVAL_FAILED`).\n\n'
+        '## Detailed Findings & Recommendations\n'
+        '1. Duplicate prose finding that should be stripped.\n\n'
+        '### References\n'
+        '- https://cloud.google.com/run/docs/securing/ingress\n\n'
+        '---\n'
+        'ℹ️ **Run / Session ID:** `63991121-cdd2-4673-8326-f558dc4a243b`\n'
+        '👇 **Detailed inline comments and 1-click code suggestions are added '
+        'on the affected files below.**'
+    )
+    formatted = parser.format_pr_review_summary(
+        raw_summary,
+        'projects/g4g-operate-demo/locations/global/sessions/2899237340096495616',
+        has_inline_comments=True,
+    )
+    self.assertIn(
+        '### Autocloud identified 2 risks in your Terraform', formatted
+    )
+    self.assertIn(
+        '| Severity | Category | Finding & Affected Locations | Guidelines |',
+        formatted,
+    )
+    self.assertNotIn('POLICY_RETRIEVAL_FAILED', formatted)
+    self.assertNotIn('## Detailed Findings & Recommendations', formatted)
+    self.assertNotIn('### References', formatted)
+    self.assertIn('ℹ️ **Run / Session ID:** `2899237340096495616`', formatted)
+    self.assertNotIn('63991121-cdd2-4673-8326-f558dc4a243b', formatted)
+    self.assertIn(
+        '👇 **Detailed inline comments and 1-click code suggestions are added '
+        'on the affected files below.**',
+        formatted,
+    )
+    self.assertEqual(
+        parser.extract_context_id_marker([formatted]),
+        'projects/g4g-operate-demo/locations/global/sessions/2899237340096495616',
+    )
+
+  def test_format_pr_review_summary_clean_pass_omits_inline_pointer(self):
+    lgtm_summary = (
+        '✅ **No issues found** — All changes validated against '
+        '**Terraform v1.8.2 Validate and Terraform Plan**. No policy '
+        'violations detected.'
+    )
+    formatted = parser.format_pr_review_summary(
+        lgtm_summary,
+        'ctx-clean-pass-42',
+        has_inline_comments=False,
+    )
+    self.assertIn('✅ **No issues found**', formatted)
+    self.assertIn('ℹ️ **Run / Session ID:** `ctx-clean-pass-42`', formatted)
+    self.assertNotIn('Detailed inline comments', formatted)
+    self.assertIn(
+        '<!-- cloud-operator-context-id: ctx-clean-pass-42 -->', formatted
+    )
+
 
 if __name__ == '__main__':
   absltest.main()

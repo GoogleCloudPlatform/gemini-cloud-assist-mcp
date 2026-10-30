@@ -108,16 +108,57 @@ _SUGGESTION_FENCE_EXTRACT_RE = re.compile(
 # Matches trailing or empty section headings/introductory lines that only
 # introduced stripped remediated file code blocks.
 _DANGLING_REMEDIATED_INTRO_RE = re.compile(
-    r'(?:^|\n)[ \t]*(?:'
+    r'(?:^|\n)(?:[ \t]*---[ \t]*\n+)*[ \t]*(?:'
     r'(?:#{1,6}[ \t]+|\*\*\s*|\d+\.\s+\*\*|\d+\.\s+)?'
     r'(?:Complete[ \t]+)?'
     r'(?:Remediated|Updated|Modified|Implemented|Generated)[ \t]+'
-    r'(?:Repository[ \t]+|IaC[ \t]+|Terraform[ \t]+)*'
+    r'(?:Repository[ \t]+|IaC[ \t]+|Terraform[ \t]+|Configuration[ \t]+)*'
     r'(?:File|Files|Code|Content|Configuration|Terraform)[^\n]*'
     r'|Here[ \t]+(?:is|are)[ \t]+the[ \t]+(?:complete[ \t]+)?'
     r'(?:remediated|updated|modified|implemented)[ \t]+[^\n:]*:'
-    r')[ \t]*(?=\n+#{1,6}[ \t]|\s*$)',
+    r')[ \t]*(?=\n+#{1,6}[ \t]|\n+---|\s*$)',
     re.IGNORECASE,
+)
+
+_SUMMARY_TRIAGE_TABLE_RE = re.compile(
+    r'\|\s*Severity\s*\|\s*Category\s*\|', re.IGNORECASE
+)
+
+_DUPLICATE_DETAILED_FINDINGS_RE = re.compile(
+    r'\n+(?:---\s*\n+)?#{1,3}[ \t]+(?:Detailed[ \t]+Findings|References\b)'
+    r'[\s\S]*?(?=\n+---|\n+ℹ️|\n+👇|\n+<!--|\Z)',
+    re.IGNORECASE,
+)
+
+_INTERNAL_TOOL_ERROR_NOTE_RE = re.compile(
+    r'(?:^|\n+)(?:#{1,4}[ \t]+[^\n]*Policy[ \t]+Assessment[ \t]+Note[^\n]*\n+)?'
+    r'[^\n]*POLICY_RETRIEVAL_FAILED[^\n]*(?:\n|$)',
+    re.IGNORECASE,
+)
+
+_SESSION_ID_PLACEHOLDER_RE = re.compile(
+    r'`?<\s*(?:session_or_trace_id|session_id|trace_id)\s*>`?',
+    re.IGNORECASE,
+)
+
+_VISIBLE_SESSION_ID_RE = re.compile(
+    r'Run\s*/?\s*Session\s+ID:', re.IGNORECASE
+)
+
+_VISIBLE_SESSION_ID_LINE_RE = re.compile(
+    r'^([ \t]*ℹ️[ \t]*(?:\*\*)?Run\s*/?\s*Session\s+ID:(?:\*\*)?[ \t]*)'
+    r'[^\r\n]*$',
+    re.IGNORECASE | re.MULTILINE,
+)
+
+_INLINE_POINTER_LINE = (
+    '👇 **Detailed inline comments and 1-click code suggestions are added '
+    'on the affected files below.**'
+)
+
+_INLINE_POINTER_RE = re.compile(
+    r'^[ \t]*👇[^\n]*inline comments[^\n]*\n?',
+    re.IGNORECASE | re.MULTILINE,
 )
 
 _FAILED_TASK_STATES = frozenset({'FAILED', 'CANCELLED', 'REJECTED'})
@@ -925,6 +966,72 @@ def embed_context_id_marker(
   if not context_id:
     return comment_body
   return f'{comment_body.rstrip()}\n\n<!-- cloud-operator-context-id: {context_id} -->'
+
+
+def format_pr_review_summary(
+    summary_markdown: str,
+    context_id: str | None = None,
+    *,
+    has_inline_comments: bool = False,
+) -> str:
+  """Formats the top-level PR review summary according to the UX M2 spec.
+
+  Cleans up any leaked internal tool error diagnostics or duplicate prose
+  sections when a 4-column triage table is present, populates the visible
+  `ℹ️ **Run / Session ID:**` audit footer and inline comments pointer, and
+  embeds the hidden `<!-- cloud-operator-context-id: ... -->` continuity marker.
+
+  Args:
+    summary_markdown: Top-level PR summary markdown with code blocks stripped.
+    context_id: Optional Cloud Operator session/context ID from MCP.
+    has_inline_comments: Whether inline review comments are attached to the PR.
+
+  Returns:
+    Formatted top-level PR review summary markdown.
+  """
+  cleaned = _INTERNAL_TOOL_ERROR_NOTE_RE.sub('\n', summary_markdown).strip()
+  if _SUMMARY_TRIAGE_TABLE_RE.search(cleaned):
+    cleaned = _DUPLICATE_DETAILED_FINDINGS_RE.sub('', cleaned).strip()
+
+  short_session_id = ''
+  if context_id and context_id.strip():
+    short_session_id = context_id.strip().rsplit('/', 1)[-1]
+
+  if _VISIBLE_SESSION_ID_LINE_RE.search(cleaned):
+    if short_session_id:
+      cleaned = _VISIBLE_SESSION_ID_LINE_RE.sub(
+          rf'\g<1>`{short_session_id}`', cleaned
+      )
+    elif _SESSION_ID_PLACEHOLDER_RE.search(cleaned):
+      cleaned = re.sub(
+          r'^[ \t]*ℹ️[^\n]*<\s*(?:session_or_trace_id|session_id|trace_id)\s*>[^\n]*\n?',
+          '',
+          cleaned,
+          flags=re.IGNORECASE | re.MULTILINE,
+      ).strip()
+  elif _SESSION_ID_PLACEHOLDER_RE.search(cleaned) and short_session_id:
+    cleaned = _SESSION_ID_PLACEHOLDER_RE.sub(f'`{short_session_id}`', cleaned)
+
+  if not has_inline_comments:
+    cleaned = _INLINE_POINTER_RE.sub('', cleaned).strip()
+
+  footer_lines: list[str] = []
+  if short_session_id and not _VISIBLE_SESSION_ID_RE.search(cleaned):
+    footer_lines.append(f'ℹ️ **Run / Session ID:** `{short_session_id}`')
+  if has_inline_comments and not _INLINE_POINTER_RE.search(cleaned):
+    footer_lines.append(_INLINE_POINTER_LINE)
+
+  if footer_lines:
+    footer_block = '\n'.join(footer_lines)
+    if re.search(r'(?:^|\n)---[ \t]*$', cleaned):
+      cleaned = f'{cleaned}\n{footer_block}'
+    elif _VISIBLE_SESSION_ID_RE.search(cleaned):
+      cleaned = f'{cleaned}\n{footer_block}'
+    else:
+      cleaned = f'{cleaned}\n\n---\n{footer_block}'
+
+  cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+  return embed_context_id_marker(cleaned, context_id)
 
 
 def extract_context_id_marker(comments: Sequence[str]) -> str | None:
