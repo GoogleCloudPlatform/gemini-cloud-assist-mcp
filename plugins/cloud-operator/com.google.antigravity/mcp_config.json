@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "autocloud": {
+      "authProviderType": "google_credentials",
+      "timeoutSeconds": 1200
+    }
+  }
+}

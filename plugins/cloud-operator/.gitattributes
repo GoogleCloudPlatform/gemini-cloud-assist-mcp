@@ -2,3 +2,8 @@
 # Windows checkout with core.autocrlf=true would otherwise give them.
 *.sh text eol=lf
 claude/tests/stubs/* text eol=lf
+
+# Store the sign-in helpers byte for byte and never convert their line endings:
+# bash rejects CRLF in adc-headers, and CMD needs the CRLF in adc-headers.cmd.
+scripts/adc-headers -text
+scripts/adc-headers.cmd -text

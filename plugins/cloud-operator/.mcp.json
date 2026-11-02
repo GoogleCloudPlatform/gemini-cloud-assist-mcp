@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "autocloud": {
+      "type": "streamable-http",
+      "url": "https://geminicloudassist.googleapis.com/mcp/autocloud",
+      "headers": {
+        "X-Goog-Api-Client": "cloud-operator/0.0.3 agent-skills/1.0 (skill:cloud-operator; version:1.0.3; plugin:cloud-operator)"
+      },
+      "timeout": 1200000,
+      "headersHelper": "\"${CLAUDE_PLUGIN_ROOT}/scripts/adc-headers\""
+    }
+  }
+}
