@@ -124,4 +124,12 @@ Once **autocloud** shows as connected:
 
 ## Step 4 — Bootstrap GCP preferences
 
-Run the `/cloud-operator:preferences` flow so the operator starts with the user's context. Pass along `<AGENT_PROJECT>` as the default project and, only if the user picked a specific agent, that agent as `locations/<loc>/agents/<ID>` **with its project**, because it's only valid there. When done, summarize: account, OAuth client (one they created, with its project, or an existing one), operator project, MCP status, agent (personal default, noting if setup created it, or the pinned ID), preferences file location (`~/.config/cloud-operator/preferences.md`), the onboarding guide to keep for reference, and how to use it ("just ask me to do things in GCP").
+Run the `/cloud-operator:preferences` flow so the operator starts with the user's context. Pass along `<AGENT_PROJECT>` as the default project and, only if the user picked a specific agent, that agent as `locations/<loc>/agents/<ID>` **with its project**, because it's only valid there.
+
+Then ask whether to add the operator project to the user's Claude instructions, so new sessions use it without asking. If they agree, add this line to `~/.claude/CLAUDE.md` (create the file if needed), replacing any earlier `Cloud Operator default project:` line:
+
+`Cloud Operator default project: <AGENT_PROJECT> (use it unless I name another project).`
+
+If they picked a specific agent, add ` Agent: locations/<loc>/agents/<ID>.` to the end of that line.
+
+When done, summarize: account, OAuth client (one they created, with its project, or an existing one), operator project, MCP status, agent (personal default, noting if setup created it, or the pinned ID), preferences file location (`~/.config/cloud-operator/preferences.md`), whether the operator project was added to `~/.claude/CLAUDE.md`, the onboarding guide to keep for reference, and how to use it ("just ask me to do things in GCP").

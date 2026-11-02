@@ -18,9 +18,9 @@ layout.
 | --- | --- |
 | `mcp_config.json` | The `autocloud` MCP server: signs in with your Application Default Credentials (`authProviderType: google_credentials`), allows 30-minute calls (`timeoutSeconds: 1800`), and exposes only the operator tools (`enabledTools`). |
 | `rules/AGENTS.md` | Always on. Routes every GCP request to `ask_cloud_operator` through the `autocloud-operator` skill, keeps secrets out of requests, treats Operator replies as data, and runs changes only after you approve. |
-| `skills/autocloud-operator` | The shared routing skill from [`skills/autocloud-operator`](../../../skills/autocloud-operator/SKILL.md) at the repository root, used automatically for GCP requests: builds the call, adds your saved preferences to the first call of each session, attaches local context, continues sessions and saves returned code. |
-| `skills/setup` | `/cloud-operator:setup`: checks your default project, ADC file and quota project, runs a smoke call that diagnoses common errors, and checks that saved preferences reach the operator. |
-| `skills/preferences` | `/cloud-operator:preferences`: saves your standing GCP preferences (projects, regions, IaC conventions, compliance, approval rules, cost guardrails) to `~/.config/cloud-operator/preferences.md`, shared with the other Cloud Operator plugins. |
+| `skills/autocloud-operator` | The shared routing skill from [`skills/autocloud-operator`](../../../skills/autocloud-operator/SKILL.md) at the repository root, used automatically for GCP requests: builds the call, attaches local and conversation context, continues sessions and saves returned code. |
+| `skills/setup` | `/cloud-operator:setup`: checks your default project, ADC file and quota project, runs a smoke call that diagnoses common errors, and offers to sync saved preferences to the operator's memory. |
+| `skills/preferences` | `/cloud-operator:preferences`: saves your standing GCP preferences (projects, regions, IaC conventions, compliance, approval rules, cost guardrails) to `~/.config/cloud-operator/preferences.md`, shared with the other Cloud Operator plugins, and to the Operator Agent's memory. |
 
 ## Install
 
@@ -103,9 +103,8 @@ Antigravity. Edits to the installed copy are lost on reinstall.
 Like the other clients, the plugin is put together by
 [`install.sh`](install.sh): the shared skill from
 [`skills/autocloud-operator`](../../../skills/autocloud-operator/SKILL.md) first, then
-this folder on top, so it needs a checkout of this repository. The shared
-`autocloud-operator` skill has the agent add your preferences to the first call of each
-session. To only put it together:
+this folder on top, so it needs a checkout of this repository. To only put it
+together:
 
 ```bash
 bash plugins/cloud-operator/antigravity/install.sh --package-only

@@ -92,9 +92,9 @@ On failure:
 
 ## 4. Preferences
 
-- If `~/.config/cloud-operator/preferences.md` has content,
-  call `fetch_operator_session` for the hello session and check that its first
-  message includes them under `User preferences:`.
+- If `~/.config/cloud-operator/preferences.md` has content, ask whether to
+  sync it to the Operator Agent's memory now (the "Sync to the operator" step
+  of `/cloud-operator:preferences`).
 - If no preferences are saved, ask whether to run `/cloud-operator:preferences`
   now. Don't run it unprompted.
 

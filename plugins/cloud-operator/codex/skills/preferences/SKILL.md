@@ -56,3 +56,5 @@ _Last updated: <YYYY-MM-DD>_
 ## Sync to the operator
 
 The cloud operator agent has its own memory. After writing the file (either mode), send the new or changed preferences to it with `ask_cloud_operator` (project from the file's default project, `agentId` if the file names one, no `contextId`): `Remember these preferences for future sessions: <the new/changed entries>`. Relay its confirmation in one line. If the call fails, say so; the local file is still saved and is sent on the first call of each conversation. When a preference is removed or changed, also ask the operator to delete the old entry, and tell the user its memory may keep it (verify with a fresh-session search if it matters).
+
+If the default project or agent changed and `~/.codex/AGENTS.md` has a `Cloud Operator default project:` line (setup adds it), update that line to match.

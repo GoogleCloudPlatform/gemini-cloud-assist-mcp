@@ -132,4 +132,10 @@ After the restart, with `ask_cloud_operator` available:
 
 Run the preferences skill so the operator starts with the user's context: its bootstrap interview, then its "Sync to the operator" step. Pass along `<AGENT_PROJECT>` as the default project and, only if Step 4b settled on a separate (non-personal) agent, that agent as `locations/<loc>/agents/<ID>` **with its project**, because it's only valid there.
 
-Then run `rm -f ~/.config/cloud-operator/setup-pending`, and summarize: account, OAuth client (new or existing, with its project), operator project, MCP status, agent (personal default, noting if setup created it or if a pasted agent turned out to be the personal one, or the separate agent's ID), preferences file location (`~/.config/cloud-operator/preferences.md`), and how to use it ("just ask me to do things in GCP"). If the user came here from a GCP request, return to it.
+Then ask whether to add the operator project to the user's Codex instructions, so new sessions use it without asking. If they agree, add this line to `~/.codex/AGENTS.md` (create the file if needed), replacing any earlier `Cloud Operator default project:` line:
+
+`Cloud Operator default project: <AGENT_PROJECT> (use it unless I name another project).`
+
+If Step 4b settled on a separate agent, add ` Agent: locations/<loc>/agents/<ID>.` to the end of that line.
+
+Then run `rm -f ~/.config/cloud-operator/setup-pending`, and summarize: account, OAuth client (new or existing, with its project), operator project, MCP status, agent (personal default, noting if setup created it or if a pasted agent turned out to be the personal one, or the separate agent's ID), preferences file location (`~/.config/cloud-operator/preferences.md`), whether the operator project was added to `~/.codex/AGENTS.md`, and how to use it ("just ask me to do things in GCP"). If the user came here from a GCP request, return to it.
