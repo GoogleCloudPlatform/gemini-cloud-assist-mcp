@@ -105,6 +105,15 @@ _SUGGESTION_FENCE_EXTRACT_RE = re.compile(
     re.DOTALL,
 )
 
+_TRAILING_RULE_SUFFIX_RE = re.compile(
+    r'[ \t]*\((?:Rule(?:s|\s+ID)?|Violates):\s*([^)]+)\)(\.?)?[ \t]*$',
+    re.IGNORECASE,
+)
+
+_INLINE_REPLY_PROMPT = (
+    '💡 _Reply to this comment to ask Google Autocloud follow-up questions._'
+)
+
 # Matches trailing or empty section headings/introductory lines that only
 # introduced stripped remediated file code blocks.
 _DANGLING_REMEDIATED_INTRO_RE = re.compile(
@@ -620,12 +629,199 @@ def extract_remediated_files(markdown_text: str) -> list[RemediatedFile]:
   return files
 
 
+def _severity_emoji(severity: str) -> str:
+  """Maps a finding severity label to its UX status emoji."""
+  normalized = severity.strip().lower()
+  if normalized in ('critical', 'high'):
+    return '🔴'
+  if normalized in ('medium', 'moderate'):
+    return '🟠'
+  if normalized in ('low', 'info', 'informational'):
+    return '🟡'
+  return '🔴'
+
+
+def _format_inline_comment_body(
+    item: Mapping[str, Any],
+    *,
+    change_index: int,
+    total_changes: int,
+) -> str:
+  """Assembles an inline review comment with all text above the suggestion diff.
+
+  Follows the UX M2 hierarchy (Figma `1722:6170`):
+    1. Minimal header: `### <🔴/🟠/🟡> #<finding_id>: <title> (<X>/<Y>)`
+    2. Crisp 1–2 sentence explanation (with redundant trailing `(Rule: ...)`
+       stripped when `rule_id` is rendered in `Source:`).
+    3. `**Source:**` and `**Resource affected:**` metadata lines.
+    4. Optional `<details>` block for multi-attribute `key_changes` (collapsed
+       by default).
+    5. Optional 3-tier GitHub alert callouts (`[!WARNING]`, `[!IMPORTANT]`,
+       `[!CAUTION]`).
+    6. Follow-up prompt (`💡 _Reply to this comment..._`).
+    7. ````suggestion` block at the very bottom.
+
+  Args:
+    item: Parsed JSON comment object from `cloud-operator-inline-comments`.
+    change_index: 1-based index of this change within `finding_id`.
+    total_changes: Total number of inline changes for `finding_id`.
+
+  Returns:
+    Assembled Markdown body string, or empty string if no content is present.
+  """
+  finding_id = _safe_int(item.get('finding_id'), 0)
+  title = str(item.get('title') or '').strip()
+  severity = str(item.get('severity') or '').strip()
+  sev_emoji = _severity_emoji(severity)
+
+  header = ''
+  if title and finding_id > 0:
+    header = (
+        f'### {sev_emoji} #{finding_id}: {title} '
+        f'({change_index}/{total_changes})'
+    )
+  elif title:
+    header = f'### {sev_emoji} {title}'
+  elif finding_id > 0:
+    header = f'### {sev_emoji} #{finding_id} ({change_index}/{total_changes})'
+
+  raw_body = str(item.get('body') or item.get('comment') or '').strip()
+  embedded_sugg_fence = ''
+  sugg_in_body = _SUGGESTION_FENCE_EXTRACT_RE.search(raw_body)
+  if sugg_in_body:
+    embedded_sugg_fence = sugg_in_body.group(1).strip()
+    raw_body = (
+        raw_body[: sugg_in_body.start()] + raw_body[sugg_in_body.end() :]
+    ).strip()
+
+  guideline_label = str(item.get('guideline_label') or '').strip()
+  guideline_url = str(item.get('guideline_url') or '').strip()
+  rule_id = str(item.get('rule_id') or '').strip().strip('`')
+  resource = str(item.get('resource') or '').strip()
+
+  trailing_rule_match = _TRAILING_RULE_SUFFIX_RE.search(raw_body)
+  if trailing_rule_match:
+    extracted_rule = trailing_rule_match.group(1).strip().strip('`')
+    if not rule_id and extracted_rule:
+      rule_id = extracted_rule
+    if rule_id:
+      prefix = raw_body[: trailing_rule_match.start()].rstrip()
+      trailing_dot = trailing_rule_match.group(2) or ''
+      if trailing_dot and prefix and prefix[-1] not in '.!?':
+        prefix = f'{prefix}.'
+      raw_body = prefix
+
+  source_parts: list[str] = []
+  if guideline_label and guideline_url:
+    source_parts.append(f'[{guideline_label}]({guideline_url})')
+  elif guideline_label:
+    source_parts.append(guideline_label)
+  elif guideline_url:
+    source_parts.append(guideline_url)
+  if rule_id:
+    source_parts.append(f'Rule ID: `{rule_id}`')
+
+  meta_lines: list[str] = []
+  if source_parts:
+    meta_lines.append(f"**Source:** {' · '.join(source_parts)}")
+  if resource:
+    formatted_res = resource if '`' in resource else f'`{resource}`'
+    meta_lines.append(f'**Resource affected:** {formatted_res}')
+  meta_block = '\n'.join(meta_lines)
+
+  details_block = ''
+  raw_key_changes = item.get('key_changes')
+  if isinstance(raw_key_changes, Sequence) and not isinstance(
+      raw_key_changes, (str, bytes)
+  ):
+    cleaned_changes = [
+        str(entry).strip().lstrip('-* ').strip()
+        for entry in raw_key_changes
+        if str(entry).strip()
+    ]
+    if cleaned_changes:
+      bullets = '\n'.join(f'- {entry}' for entry in cleaned_changes)
+      details_block = (
+          '<details>\n'
+          '<summary><b>Key changes</b></summary>\n\n'
+          f'{bullets}\n'
+          '</details>'
+      )
+
+  warning_block = ''
+  disruptive_warning = str(item.get('disruptive_warning') or '').strip()
+  if disruptive_warning:
+    warning_block = (
+        f'> [!WARNING]\n'
+        f'> **⚠️ Warning (Disruptive change):** {disruptive_warning}'
+    )
+
+  important_block = ''
+  cost_important = str(item.get('cost_important') or '').strip()
+  if cost_important:
+    important_block = (
+        f'> [!IMPORTANT]\n> **📋 Important (Cost impact):** {cost_important}'
+    )
+
+  caution_block = ''
+  action_caution = str(item.get('action_required_caution') or '').strip()
+  if action_caution:
+    caution_block = (
+        f'> [!CAUTION]\n'
+        f'> **🛠️ Action Required Before Applying:** {action_caution}'
+    )
+
+  suggestion_fence = embedded_sugg_fence
+  raw_suggestion = item.get('suggestion')
+  if isinstance(raw_suggestion, str) and not suggestion_fence:
+    outer_match = _OUTER_CODE_FENCE_RE.match(raw_suggestion)
+    unwrapped_sugg = outer_match.group(2) if outer_match else raw_suggestion
+    clean_sugg = _strip_line_number_prefixes(unwrapped_sugg).rstrip('\n')
+    suggestion_fence = f'```suggestion\n{clean_sugg}\n```'
+
+  has_text_above_diff = any((
+      header,
+      raw_body,
+      meta_block,
+      details_block,
+      warning_block,
+      important_block,
+      caution_block,
+  ))
+  reply_line = ''
+  if (
+      has_text_above_diff
+      and 'Reply to this comment' not in raw_body
+  ):
+    reply_line = _INLINE_REPLY_PROMPT
+
+  return '\n\n'.join(
+      filter(
+          None,
+          [
+              header,
+              raw_body,
+              meta_block,
+              details_block,
+              warning_block,
+              important_block,
+              caution_block,
+              reply_line,
+              suggestion_fence,
+          ],
+      )
+  )
+
+
 def extract_inline_comments(markdown_text: str) -> list[InlineReviewComment]:
   """Extracts structured inline PR review comments from the agent's response.
 
   Parses `title="cloud-operator-inline-comments"` JSON code blocks containing a
-  list of comment objects (`path`, `line`, optional `start_line`, `body`, and
-  optional `suggestion`).
+  list of comment objects (`path`, `line`, optional `start_line`, `body`,
+  optional `suggestion`, and UX M2 fields `finding_id`, `change_index`,
+  `total_changes_for_finding`, `title`, `severity`, `guideline_label`,
+  `guideline_url`, `rule_id`, `resource`, `key_changes`, `disruptive_warning`,
+  `cost_important`, and `action_required_caution`).
 
   Args:
     markdown_text: Full markdown response from `ask_cloud_operator`.
@@ -646,6 +842,8 @@ def extract_inline_comments(markdown_text: str) -> list[InlineReviewComment]:
     else:
       continue
 
+    valid_items: list[tuple[Mapping[str, Any], str, int, int | None]] = []
+    finding_totals: dict[int, int] = {}
     for item in items:
       if not isinstance(item, Mapping):
         continue
@@ -671,17 +869,32 @@ def extract_inline_comments(markdown_text: str) -> list[InlineReviewComment]:
           start_line_val = line
           line = cand_start
 
-      body = str(item.get('body') or item.get('comment') or '').strip()
-      suggestion = item.get('suggestion')
-      if isinstance(suggestion, str) and '```suggestion' not in body:
-        outer_match = _OUTER_CODE_FENCE_RE.match(suggestion)
-        unwrapped_sugg = outer_match.group(2) if outer_match else suggestion
-        clean_sugg = _strip_line_number_prefixes(unwrapped_sugg).rstrip('\n')
-        body = (
-            f'{body}\n\n```suggestion\n{clean_sugg}\n```'
-            if body
-            else f'```suggestion\n{clean_sugg}\n```'
+      finding_id = _safe_int(item.get('finding_id'), 0)
+      if finding_id > 0:
+        finding_totals[finding_id] = finding_totals.get(finding_id, 0) + 1
+      valid_items.append((item, safe_path, line, start_line_val))
+
+    finding_seen: dict[int, int] = {}
+    for item, safe_path, line, start_line_val in valid_items:
+      finding_id = _safe_int(item.get('finding_id'), 0)
+      change_idx = 1
+      total_changes = 1
+      if finding_id > 0:
+        finding_seen[finding_id] = finding_seen.get(finding_id, 0) + 1
+        change_idx = (
+            _safe_int(item.get('change_index'), 0) or finding_seen[finding_id]
         )
+        total_changes = _safe_int(
+            item.get('total_changes_for_finding')
+            or item.get('total_changes'),
+            0,
+        ) or max(change_idx, finding_totals.get(finding_id, 1))
+
+      body = _format_inline_comment_body(
+          item,
+          change_index=change_idx,
+          total_changes=total_changes,
+      )
       if not body:
         continue
 

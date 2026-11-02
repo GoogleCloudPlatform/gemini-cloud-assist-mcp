@@ -281,6 +281,145 @@ class ParserTest(absltest.TestCase):
         comments[0].body,
     )
 
+  def test_extract_inline_comments_formats_enriched_ux_m2_hierarchy(self):
+    markdown = (
+        '```json title="cloud-operator-inline-comments"\n'
+        '[\n'
+        '  {\n'
+        '    "finding_id": 1,\n'
+        '    "path": "main.tf",\n'
+        '    "line": 65,\n'
+        '    "title": "Restrict Cloud Run ingress to Internal Load Balancer",\n'
+        '    "severity": "High",\n'
+        '    "body": "Cloud Run uses `INGRESS_TRAFFIC_ALL`, bypassing the LB '
+        '(Rule: `run_ingress_settings`).",\n'
+        '    "guideline_label": "Cloud Run Ingress Settings",\n'
+        '    "guideline_url": '
+        '"https://cloud.google.com/run/docs/securing/ingress",\n'
+        '    "rule_id": "run_ingress_settings (constraints/run.allowedIngress)",\n'
+        '    "resource": "module.cloud_run",\n'
+        '    "key_changes": [],\n'
+        '    "disruptive_warning": "Direct `*.run.app` URLs will reject '
+        'external requests.",\n'
+        '    "cost_important": "",\n'
+        '    "action_required_caution": "",\n'
+        '    "suggestion": "  ingress = \\"INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER\\""\n'
+        '  },\n'
+        '  {\n'
+        '    "finding_id": 1,\n'
+        '    "path": "outputs.tf",\n'
+        '    "start_line": 6,\n'
+        '    "line": 10,\n'
+        '    "title": "Export Global Load Balancer IP",\n'
+        '    "severity": "High",\n'
+        '    "body": "Export the LB IP for external callers.",\n'
+        '    "guideline_label": "Cloud Run Ingress Settings",\n'
+        '    "guideline_url": '
+        '"https://cloud.google.com/run/docs/securing/ingress",\n'
+        '    "rule_id": "run_ingress_settings",\n'
+        '    "resource": "`output.cloud_run_urls`, `output.lb_ip`",\n'
+        '    "suggestion": "output \\"lb_ip\\" {\\n  value = module.lb.ip\\n}"\n'
+        '  },\n'
+        '  {\n'
+        '    "finding_id": 2,\n'
+        '    "change_index": 1,\n'
+        '    "total_changes_for_finding": 1,\n'
+        '    "path": "main.tf",\n'
+        '    "start_line": 164,\n'
+        '    "line": 168,\n'
+        '    "title": "Enforce UBLA, public access prevention, and versioning",\n'
+        '    "severity": "Medium",\n'
+        '    "body": "Bucket permits legacy ACLs and lacks versioning.\\n\\n'
+        '```suggestion\\n  uniform_bucket_level_access = true\\n```",\n'
+        '    "guideline_label": "GCS Public Access Prevention",\n'
+        '    "guideline_url": '
+        '"https://cloud.google.com/storage/docs/public-access-prevention",\n'
+        '    "rule_id": "gcs_prevent_public",\n'
+        '    "resource": "google_storage_bucket.test_bucket",\n'
+        '    "key_changes": [\n'
+        '      "Add `uniform_bucket_level_access = true`.",\n'
+        '      "Enable `versioning { enabled = true }`."\n'
+        '    ],\n'
+        '    "disruptive_warning": "Rejects legacy per-object ACL calls.",\n'
+        '    "cost_important": "Object versioning increases storage costs.",\n'
+        '    "action_required_caution": "Replace placeholder bucket name."\n'
+        '  }\n'
+        ']\n'
+        '```\n'
+    )
+    comments = parser.extract_inline_comments(markdown)
+    self.assertLen(comments, 3)
+
+    c1 = comments[0].body
+    self.assertIn(
+        '### 🔴 #1: Restrict Cloud Run ingress to Internal Load Balancer (1/2)',
+        c1,
+    )
+    self.assertIn('Cloud Run uses `INGRESS_TRAFFIC_ALL`, bypassing the LB.', c1)
+    self.assertNotIn('(Rule:', c1)
+    self.assertIn(
+        '**Source:** [Cloud Run Ingress Settings]'
+        '(https://cloud.google.com/run/docs/securing/ingress) · '
+        'Rule ID: `run_ingress_settings (constraints/run.allowedIngress)`',
+        c1,
+    )
+    self.assertIn('**Resource affected:** `module.cloud_run`', c1)
+    self.assertIn(
+        '> [!WARNING]\n> **⚠️ Warning (Disruptive change):** '
+        'Direct `*.run.app` URLs will reject external requests.',
+        c1,
+    )
+    self.assertIn(
+        '💡 _Reply to this comment to ask Google Autocloud follow-up '
+        'questions._',
+        c1,
+    )
+    self.assertTrue(
+        c1.endswith(
+            '```suggestion\n'
+            '  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"\n'
+            '```'
+        )
+    )
+
+    c2 = comments[1].body
+    self.assertIn('### 🔴 #1: Export Global Load Balancer IP (2/2)', c2)
+    self.assertIn(
+        '**Resource affected:** `output.cloud_run_urls`, `output.lb_ip`', c2
+    )
+
+    c3 = comments[2].body
+    self.assertIn(
+        '### 🟠 #2: Enforce UBLA, public access prevention, and versioning (1/1)',
+        c3,
+    )
+    self.assertIn(
+        '<details>\n<summary><b>Key changes</b></summary>\n\n'
+        '- Add `uniform_bucket_level_access = true`.\n'
+        '- Enable `versioning { enabled = true }`.\n'
+        '</details>',
+        c3,
+    )
+    self.assertNotIn('<details open', c3)
+    # Verify strict top-to-bottom ordering above the ```suggestion block.
+    idx_header = c3.index('### 🟠 #2:')
+    idx_prose = c3.index('Bucket permits legacy ACLs')
+    idx_source = c3.index('**Source:**')
+    idx_details = c3.index('<details>')
+    idx_warning = c3.index('> [!WARNING]')
+    idx_important = c3.index('> [!IMPORTANT]')
+    idx_caution = c3.index('> [!CAUTION]')
+    idx_reply = c3.index('💡 _Reply to this comment')
+    idx_sugg = c3.index('```suggestion')
+    self.assertLess(idx_header, idx_prose)
+    self.assertLess(idx_prose, idx_source)
+    self.assertLess(idx_source, idx_details)
+    self.assertLess(idx_details, idx_warning)
+    self.assertLess(idx_warning, idx_important)
+    self.assertLess(idx_important, idx_caution)
+    self.assertLess(idx_caution, idx_reply)
+    self.assertLess(idx_reply, idx_sugg)
+
   def test_build_inline_comments_from_remediated_files_diffs_lines(self):
     original = {
         'main.tf': (
