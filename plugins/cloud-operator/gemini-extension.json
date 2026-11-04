@@ -1,12 +1,12 @@
 {
   "name": "cloud-operator",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Routes Google Cloud requests about your projects (questions, architecture, Terraform and Kubernetes review, rollouts, incidents, cost) to the Cloud Operator Agent through the Autocloud MCP server, signed in with Application Default Credentials.",
   "mcpServers": {
     "autocloud": {
       "httpUrl": "https://geminicloudassist.googleapis.com/mcp/autocloud",
       "headers": {
-        "X-Goog-Api-Client": "cloud-operator/0.0.4 agent-skills/1.0 (skill:cloud-operator; version:1.0.4; plugin:cloud-operator)"
+        "X-Goog-Api-Client": "cloud-operator/0.0.5 agent-skills/1.0 (skill:cloud-operator; version:1.1.0; plugin:cloud-operator)"
       },
       "authProviderType": "google_credentials",
       "oauth": {

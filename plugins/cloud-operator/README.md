@@ -323,7 +323,7 @@ mcp_optional_startup_grace_ms = 0
 
 [mcp_servers.autocloud]
 url = "https://geminicloudassist.googleapis.com/mcp/autocloud"
-http_headers = { "X-Goog-Api-Client" = "cloud-operator/0.0.4 agent-skills/1.0 (skill:cloud-operator; version:1.0.4; plugin:cloud-operator)" }
+http_headers = { "X-Goog-Api-Client" = "cloud-operator/0.0.5 agent-skills/1.0 (skill:cloud-operator; version:1.1.0; plugin:cloud-operator)" }
 http_headers_helper = '"/Users/<YOU>/.codex/bin/adc-headers"'
 tool_timeout_sec = 1200
 ```
@@ -360,11 +360,28 @@ tells you the project and agent it used.
 The first time you ask about your Google Cloud projects, your agent asks which
 project your operator agent is in, helps you create the agent if you don't have
 one, and remembers your choice. To do this up front, ask your agent to **set up
-Cloud Operator**.
+Cloud Operator** (`/cloud-operator:setup` in Claude Code and Antigravity).
 
 To create the operator agent yourself, open
 `https://console.cloud.google.com/autocloud/home?project=<YOUR_PROJECT_ID>`,
 signed in with the same account, and click **Create operator agent**.
+
+At the end of setup, or after its first Cloud Operator answer if you skipped
+setup, your agent offers to share the Google Cloud context you and your team
+already have — environments (test, staging, prod), projects, services,
+regions, product preferences, best practices, architecture guidance, what
+happened (incidents, fixes, decisions) and your runbooks (deploys, rollbacks,
+incident response) — with the operator's memory. It finds them in its
+instructions, memory, skills and your repository's GCP docs, and shows you the
+list before sending anything. If the operator already has a different version
+of a note, your agent shows you both, with where each came from, and asks which
+is current. If you don't answer the offer, it asks again in a later
+conversation; in clients that keep memory per repository, such as Claude Code,
+it asks in each repository. To do it at any time, ask your agent to **share
+your existing Google Cloud context with Cloud Operator**
+(`/cloud-operator:share-context` in Claude Code and Antigravity). When you do
+it again, it offers to send only what's new. To save one fact, put it after the
+command, e.g. `/cloud-operator:share-context we deploy only to us-east1`.
 
 If something doesn't work, see [Troubleshooting](#troubleshooting).
 
@@ -407,6 +424,20 @@ If something doesn't work, see [Troubleshooting](#troubleshooting).
     Terraform and Kubernetes review, rollouts, incidents, cost) to the Cloud
     Operator Agent. The first time, it asks for your operator project and
     agent, and helps you create the agent.
+-   **[setup](./skills/setup)**:
+    Finds or creates your operator agent in a project, checks that it answers,
+    remembers the project, and offers to share your existing Google Cloud
+    context. Runs when you ask to set up Cloud Operator
+    (`/cloud-operator:setup` in Claude Code and Antigravity).
+-   **[share-context](./skills/share-context)**:
+    Shares the Google Cloud context you and your team already have —
+    environments, projects, services, regions, product preferences, best
+    practices, architecture guidance, what happened and your runbooks — with
+    the operator's memory, after you review it. Your agent finds them in its
+    instructions, memory, skills and your repository's GCP docs. Runs when you
+    accept the offer at the end of setup or after your first answer, or when
+    you ask to share your existing Google Cloud context
+    (`/cloud-operator:share-context` in Claude Code and Antigravity).
 
 ### MCP Servers
 
@@ -463,7 +494,7 @@ commands.
 
 > [!NOTE] The `cloud-operator` skill prefixes each `gcloud` command it runs
 > with a usage attribution variable, for example
-> `CLOUDSDK_METRICS_REQUEST_ATTRIBUTION="agent-skills/1.0 (skill:cloud-operator; version:1.0.4)" gcloud config get-value project`.
+> `CLOUDSDK_METRICS_REQUEST_ATTRIBUTION="agent-skills/1.0 (skill:cloud-operator; version:1.1.0)" gcloud config get-value project`.
 > Clients that match permission rules against the start of a command, such as
 > Claude Code, need rules that include the prefix: a rule for
 > `gcloud config get-value` alone doesn't match. For example, in Claude Code:

@@ -8,7 +8,7 @@
       "name": "cloud-operator",
       "source": "./plugins/cloud-operator",
       "description": "Routes Google Cloud requests about your projects (questions, architecture, Terraform and Kubernetes review, rollouts, incidents, cost) to the Cloud Operator Agent through the Autocloud MCP server, signed in with Application Default Credentials.",
-      "version": "0.0.4",
+      "version": "0.0.5",
       "author": {
         "name": "Google LLC"
       },
