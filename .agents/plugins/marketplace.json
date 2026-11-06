@@ -1,0 +1,32 @@
+{
+  "name": "gemini-cloud-assist-mcp",
+  "interface": {
+    "displayName": "Gemini Cloud Assist MCP"
+  },
+  "plugins": [
+    {
+      "name": "gemini-cloud-assist-mcp",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    },
+    {
+      "name": "cloud-operator",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cloud-operator"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    }
+  ]
+}

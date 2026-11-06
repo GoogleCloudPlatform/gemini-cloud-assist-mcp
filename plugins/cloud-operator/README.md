@@ -53,6 +53,52 @@ In Codex, you also add the server to `~/.codex/config.toml` (Setup, below).
 
 ## Installation
 
+### Remove an earlier install first
+
+If you installed Cloud Operator with one of the earlier per-client installers
+(`install.sh`), remove that copy before you install this plugin. It would
+compete with this plugin for the same requests, and its `autocloud` server
+entry would replace this plugin's.
+
+-   **Claude Code:**
+
+    ```bash
+    claude plugin uninstall cloud-operator@cloud-operator-marketplace
+    claude plugin marketplace remove cloud-operator-marketplace
+    claude mcp logout autocloud
+    claude mcp remove autocloud -s user
+    ```
+
+    `claude mcp logout` revokes your sign-in, and `claude mcp remove` deletes
+    the server entry with what Claude Code stored for it. Then remove
+    `Read(~/.config/cloud-operator/**)` from `permissions.allow` in
+    `~/.claude/settings.json`.
+
+-   **Codex:**
+
+    ```bash
+    codex plugin remove cloud-operator@personal
+    codex mcp logout autocloud
+    codex mcp remove autocloud
+    rm -rf ~/.codex/plugins/cloud-operator ~/.codex/cloud-operator-backups
+    rm -f ~/.codex/config.toml.bak.cloud-operator.*
+    ```
+
+    If your personal marketplace has another name, run
+    `codex plugin marketplace list` to find it. The
+    `config.toml.bak.cloud-operator.*` files are the earlier setup's backups of
+    `~/.codex/config.toml`, and they can hold your OAuth client secret. Then
+    delete the `cloud-operator` entry in `~/.agents/plugins/marketplace.json`,
+    and check that `~/.codex/config.toml` has no `[mcp_servers.autocloud]` or
+    `[mcp_servers.autocloud.oauth]` table left.
+
+-   **Antigravity:** run `agy plugin uninstall cloud-operator`.
+
+Then delete `~/.cloud-operator` and `~/.config/cloud-operator`; nothing reads
+them anymore. If you created an OAuth client only for the earlier setup, you
+can also delete it in the Google Cloud console (**Google Auth Platform** >
+**Clients**): this plugin signs in with Application Default Credentials.
+
 ### Antigravity CLI
 
 Install the plugin directly via the CLI using its path in this repository:
@@ -261,126 +307,3 @@ commands.
 > that, add a Read rule for the folder the plugin is installed in. Absolute
 > paths in Read rules start with `//`, for example
 > `Read(//Users/<you>/.claude/plugins/**)`.
-
---------------------------------------------------------------------------------
-
-## Per-client plugins (deprecated)
-
-> [!WARNING]
-> **Deprecated.** The per-client plugins in `claude/`, `codex/` and
-> `antigravity/` are deprecated and will be removed soon. Use the
-> `cloud-operator` plugin above instead.
-
-Client plugins for **Cloud Operator**, the Gemini Cloud Assist operator agent:
-thin clients that route Google Cloud requests from an AI coding tool to the
-hosted `ask_cloud_operator` MCP tool.
-
-> [!IMPORTANT]
-> **Private Preview.** Cloud Operator and its MCP server are in Private Preview.
-
-### Install
-
-You need access to Cloud Operator: an operator agent and
-`roles/geminicloudassist.user` on its project. Each client's README covers the
-other prerequisites, setup details and troubleshooting.
-
-#### Claude Code
-
-```shell
-gcloud auth login   # the Google account you'll use for Cloud Operator
-curl -fsSL https://raw.githubusercontent.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/main/plugins/cloud-operator/claude/install.sh | bash
-```
-
-Then run `/cloud-operator:setup` in Claude Code. It walks you through creating an
-OAuth client, registering the server and signing in, and saves your
-preferences. See [`claude/README.md`](claude/README.md).
-
-#### ChatGPT Codex
-
-For the ChatGPT desktop app and the Codex CLI on macOS:
-
-```shell
-gcloud auth login   # the Google account you'll use for Cloud Operator
-git clone https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp.git
-bash gemini-cloud-assist-mcp/plugins/cloud-operator/codex/install.sh
-```
-
-Then restart Codex, type `@cloud-operator` and ask "Set up Cloud Operator". See
-[`codex/README.md`](codex/README.md).
-
-#### Google Antigravity
-
-The plugin signs in with your Application Default Credentials. Set those up
-first, as [`antigravity/README.md`](antigravity/README.md) describes, then
-install it:
-
-```shell
-curl -fsSL https://raw.githubusercontent.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/main/plugins/cloud-operator/antigravity/install.sh | bash
-```
-
-Then restart Antigravity, turn the plugin on in `/plugin` if it shows as off,
-and run `/cloud-operator:setup`.
-
-The rest of this page is for contributors.
-
-### Layout
-
-```text
-skills/autocloud-operator/  The routing skill (when and how to call ask_cloud_operator),
-                            shared by every client plugin and the repository-root plugin
-plugins/cloud-operator/
-├── antigravity/            Antigravity: client-specific files
-├── claude/                 Claude Code: client-specific files
-└── codex/                  Codex: client-specific files
-```
-
-Each client folder holds only what's specific to that client: its plugin
-manifest, installer, sign-in setup, and client-specific commands or skills
-(such as setup). The routing skill isn't copied into each client: every
-installer takes it from [`skills/autocloud-operator`](../../skills/autocloud-operator/SKILL.md)
-at the repository root.
-
-### Packaging
-
-Client folders aren't installable on their own: the routing skill lives at
-the repository root, and client folders carry no marketplace manifest. Each
-client has its own installer in its folder, such as `claude/install.sh`,
-which assembles the plugin when the user installs it:
-
-1. Copy `skills/autocloud-operator` from the repository root into the plugin's
-   `skills/autocloud-operator` folder.
-2. Copy the client folder on top.
-3. Install the assembled plugin with the client's own tooling, through a
-   marketplace where the client needs one.
-
-### The repository-root plugin
-
-The repository root also ships a plugin, `gemini-cloud-assist-mcp`, for
-several clients. In Claude Code, Codex and Antigravity, a plugin from this
-folder replaces it, so don't install both. Both bring the same routing skill,
-and the two would compete for the same requests. Both connect to
-`/mcp/autocloud`, which serves only the operator tools.
-
-### Rules for the routing skill
-
-- `skills/autocloud-operator` is the routing skill. Its wording was tuned and
-  measured with routing evals, so keep it verbatim and change it only together
-  with a new eval run.
-- Every client follows the conventions that skill relies on: name the MCP
-  server `autocloud`, and keep the user's standing GCP preferences in
-  `~/.config/cloud-operator/preferences.md`, one file that all clients share.
-- Keep it client-neutral: no client-specific tool prefixes, slash commands,
-  file paths or settings. Refer to the MCP tool by its name,
-  `ask_cloud_operator`. One known exception: the skill names the Claude Code
-  command `/cloud-operator:preferences` as an example. Leave it there, since
-  the skill changes only with a new eval run.
-- Put client-specific details, such as setup and preference commands, in the
-  client folder, for example in its setup skill.
-- A change to the skill affects every client and the root plugin, so check it
-  against each one.
-
-### Adding a client
-
-Create `plugins/cloud-operator/<client>/` with the client's manifest,
-installer, sign-in setup, and any client-specific commands and skills,
-following the packaging steps above. Describe it in the client's `README.md`.

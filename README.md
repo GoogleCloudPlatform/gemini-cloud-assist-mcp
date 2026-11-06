@@ -4,17 +4,9 @@
 > **Private Preview Notice**
 > The Gemini Cloud Assist MCP server APIs are currently in Private Preview and are behind an allowlist. Please contact your Google Cloud account team to request access.
 
-> [!WARNING]
-> **Deprecation Notice & Migration to Remote MCP Server**
->
-> The Gemini Cloud Assist MCP server has migrated from a local Node.js architecture to a Remote MCP Server architecture. The older local Node.js server will lose support in the coming months.
->
-> To use the new Remote MCP Servers, please use version `v0.8.0` or later. If you wish to continue using the legacy local server during the transition, please pin your configuration to older versions.
-
-[![npm @google-cloud/gemini-cloud-assist-mcp package](https://img.shields.io/npm/v/@google-cloud/gemini-cloud-assist-mcp.svg)](https://www.npmjs.com/package/@google-cloud/gemini-cloud-assist-mcp)
 [![](https://img.shields.io/github/license/GoogleCloudPlatform/gemini-cloud-assist-mcp)](./LICENSE)
 
-This server connects [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients to the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference). It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment directly from the local command line.
+This repository connects AI coding agents and other [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) clients to Cloud Operator, part of the [**Gemini Cloud Assist APIs**](https://cloud.google.com/gemini/docs/api-and-reference), through the remote Gemini Cloud Assist MCP server. It allows you to use natural language to understand, manage, and troubleshoot your Google Cloud environment from your agent.
 
 The configurations in this repository connect to the Cloud Operator endpoint, `https://geminicloudassist.googleapis.com/mcp/autocloud`, which serves the Cloud Operator tools (`ask_cloud_operator`, `search_operator_sessions`, `fetch_operator_session`). The other Gemini Cloud Assist tools listed in the [reference documentation](https://docs.cloud.google.com/gemini/docs/geminicloudassist/reference/mcp) stay on `https://geminicloudassist.googleapis.com/mcp` and are not reachable through these configurations.
 
@@ -38,22 +30,39 @@ Cloud Operator is an operator agent with live project context. Through `ask_clou
 Before you begin, ensure you have the following set up:
 
 - [**Google Cloud SDK**](https://cloud.google.com/sdk/docs/install) installed and configured.
-- A **Google Cloud project**.
+- A **Google Cloud project** on the Private Preview allowlist.
 - The following **IAM roles** on your user account:
   - `roles/serviceusage.serviceUsageAdmin`: Required to enable the Cloud Assist APIs.
   - `roles/geminicloudassist.user`: Required to make requests to the Cloud Assist APIs.
 
 ### Step 1: Authenticate to Google Cloud
 
-The Gemini Cloud Assist MCP server uses local Application Default Credentials (ADC) to securely authenticate to Google Cloud. To set up ADC, run the following `gcloud` commands:
+The Cloud Operator plugin and the Antigravity configuration below sign in with your local Application Default Credentials (ADC). To set up ADC, run the following `gcloud` commands:
 
 ```shell
 # Authenticate your user account to the gcloud CLI
 gcloud auth login
 
-# Set up Application Default Credentials for the server.
+# Set up Application Default Credentials for the same account
 gcloud auth application-default login
+
+# Set the project that those credentials' calls are billed to, usually the one where your operator agent is
+gcloud auth application-default set-quota-project PROJECT_ID
 ```
+
+Setting the quota project needs `serviceusage.services.use` on that project; project Owners and Editors have it.
+
+### Step 2: Enable the API
+
+Enable the Gemini Cloud Assist API in the project where your operator agent is:
+
+```shell
+gcloud services enable geminicloudassist.googleapis.com --project=PROJECT_ID
+```
+
+### Step 3: Connect your agent
+
+In Claude Code, Codex, or Antigravity, install the [Cloud Operator plugin](#cloud-operator-plugin-claude-code-chatgpt-codex-and-google-antigravity). For other MCP clients, use one of the configurations below.
 
 ## Configure your MCP client
 
@@ -61,32 +70,23 @@ The client-agent configuration depends on which agent you are using.
 
 ### Cloud Operator plugin: Claude Code, ChatGPT Codex and Google Antigravity
 
-> [!IMPORTANT]
-> **Private Preview.** Cloud Operator and its MCP server are in Private Preview.
+The Cloud Operator plugin, in [`plugins/cloud-operator`](plugins/cloud-operator/README.md), connects Claude Code, ChatGPT Codex or Google Antigravity to Cloud Operator (`ask_cloud_operator`). It:
 
-The Cloud Operator plugin (in `plugins/cloud-operator`; it installs as
-`cloud-operator`, so its commands are `/cloud-operator:…`) connects Claude Code, ChatGPT
-Codex or Google Antigravity to Cloud Operator (`ask_cloud_operator`). It:
+- connects the `autocloud` MCP server, signed in with your ADC, with a 20-minute tool timeout (in Codex, you add the server to `~/.codex/config.toml` yourself);
+- adds the `cloud-operator` skill, which helps your agent decide when and how to use Cloud Operator, and asks which project to use the first time.
 
-- sets up the MCP connection to Cloud Operator, with a 30-minute tool timeout;
-- asks which operator agent to use and checks it answers;
-- saves your Google Cloud preferences and passes them to Cloud Operator;
-- adds a skill that helps your agent decide when and how to use Cloud Operator.
-
-To install it, see [`plugins/cloud-operator`](plugins/cloud-operator/README.md).
-In these agents, the plugin replaces the `gemini-cloud-assist-mcp` plugin at the
-root of this repository, so don't install both.
+To install it, see [`plugins/cloud-operator`](plugins/cloud-operator/README.md#installation). If you installed Cloud Operator with one of the earlier per-client installers, [remove that copy first](plugins/cloud-operator/README.md#remove-an-earlier-install-first). In these agents, the plugin replaces the `gemini-cloud-assist-mcp` plugin at the root of this repository, so don't install both.
 
 ### Antigravity
 
-Add the following to your `mcp_config.json`:
+To add only the server, without the plugin's skill, add the following to your `mcp_config.json`:
 
 ```json
 "mcpServers": {
-  "gemini_cloud_assist": {
+  "autocloud": {
     "serverUrl": "https://geminicloudassist.googleapis.com/mcp/autocloud",
-    "headers": {},
-    "authProviderType": "google_credentials"
+    "authProviderType": "google_credentials",
+    "timeoutSeconds": 1200
   }
 }
 ```
@@ -100,7 +100,7 @@ Add the following to your `mcp_config.json`:
 ```json
 {
   "mcpServers": {
-    "gemini_cloud_assist": {
+    "autocloud": {
       "url": "https://geminicloudassist.googleapis.com/mcp/autocloud",
       "auth": {
         "CLIENT_ID": "${env:OAUTH_CLIENT_ID}",
@@ -137,11 +137,17 @@ The other Gemini Cloud Assist tools (`ask_cloud_assist`, `design_infra`, `invest
 
 ## Agent Skills
 
-The Gemini Cloud Assist MCP tools leverage `SKILL.md` files to instruct your agent on how to properly use the tools. The skills help to guide your agent on when to delegate to Cloud Operator, passing relevant local information to it, and enabling explicit invocation.
+The Cloud Operator plugin uses a `SKILL.md` file to instruct your agent on how to properly use the tools. The skill guides your agent on when to delegate to Cloud Operator, passing relevant local information to it, and working with the files it returns.
 
 | Skill | Description |
 | :--- | :--- |
-| **`autocloud-operator`** | Delegates Google Cloud operations to the Cloud Operator agent (`ask_cloud_operator`): incident investigation, rollout review, cost optimization, Terraform review and generation, and how-to questions, with Terraform results applied as reviewable file edits. Requires Private Preview access. |
+| **[`cloud-operator`](plugins/cloud-operator/skills/cloud-operator/SKILL.md)** | Delegates Google Cloud work to the Cloud Operator agent (`ask_cloud_operator`): how-to questions, architecture design, Terraform, Kubernetes and Helm generation and review, resource management, rollouts, incidents, and costs, with generated and changed files written as reviewable edits. Requires Private Preview access. |
+
+## Deprecated local Node.js server
+
+The Gemini Cloud Assist MCP server has migrated from a local Node.js architecture (the [`@google-cloud/gemini-cloud-assist-mcp`](https://www.npmjs.com/package/@google-cloud/gemini-cloud-assist-mcp) npm package) to a Remote MCP Server architecture. The older local Node.js server will lose support in the coming months.
+
+To use the new Remote MCP Servers, please use version `v0.8.0` or later. If you wish to continue using the legacy local server during the transition, please pin your configuration to older versions.
 
 ## **Contributing**
 
