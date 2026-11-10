@@ -5,30 +5,10 @@
   },
   "plugins": [
     {
-      "name": "gemini-cloud-assist-mcp",
-      "source": "./",
-      "description": "Operate, troubleshoot, and manage applications and infrastructure on Google Cloud using the Gemini Cloud Assist Operator.",
-      "version": "0.9.0",
-      "author": {
-        "name": "Google LLC"
-      },
-      "license": "Apache-2.0",
-      "keywords": [
-        "google-cloud",
-        "gcp",
-        "cloud-assist",
-        "cloud-operator",
-        "sre",
-        "troubleshooting",
-        "operations",
-        "infrastructure"
-      ]
-    },
-    {
       "name": "cloud-operator",
       "source": "./plugins/cloud-operator",
       "description": "Routes Google Cloud requests about your projects (questions, architecture, Terraform and Kubernetes review, rollouts, incidents, cost) to the Cloud Operator Agent through the Autocloud MCP server, signed in with Application Default Credentials.",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "author": {
         "name": "Google LLC"
       },

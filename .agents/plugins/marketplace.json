@@ -5,18 +5,6 @@
   },
   "plugins": [
     {
-      "name": "gemini-cloud-assist-mcp",
-      "source": {
-        "source": "local",
-        "path": "./"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Cloud"
-    },
-    {
       "name": "cloud-operator",
       "source": {
         "source": "local",

@@ -1,0 +1,53 @@
+{
+  "name": "@google/cloud-operator",
+  "version": "0.0.4",
+  "description": "Routes Google Cloud requests about your projects (questions, architecture, Terraform and Kubernetes review, rollouts, incidents, cost) to the Cloud Operator Agent through the Autocloud MCP server, signed in with Application Default Credentials.",
+  "keywords": [
+    "google-cloud",
+    "gcp",
+    "cloud-operator",
+    "sre",
+    "troubleshooting",
+    "operations",
+    "infrastructure",
+    "opencode-plugin",
+    "pi-package"
+  ],
+  "homepage": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/tree/main/plugins/cloud-operator",
+  "bugs": "https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GoogleCloudPlatform/gemini-cloud-assist-mcp.git",
+    "directory": "plugins/cloud-operator"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Google LLC",
+    "url": "https://cloud.google.com"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/opencode.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./src/pi.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "files": [
+    "src/",
+    "skills/",
+    "scripts/",
+    "mcp.json",
+    ".mcp.json",
+    "README.md"
+  ],
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.4.0",
+    "@opencode/plugin": "^2.2.5",
+    "@types/node": "^22.0.0"
+  }
+}

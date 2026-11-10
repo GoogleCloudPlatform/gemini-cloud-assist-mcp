@@ -75,7 +75,7 @@ The Cloud Operator plugin, in [`plugins/cloud-operator`](plugins/cloud-operator/
 - connects the `autocloud` MCP server, signed in with your ADC, with a 20-minute tool timeout (in Codex, you add the server to `~/.codex/config.toml` yourself);
 - adds the `cloud-operator` skill, which helps your agent decide when and how to use Cloud Operator, and asks which project to use the first time.
 
-To install it, see [`plugins/cloud-operator`](plugins/cloud-operator/README.md#installation). If you installed Cloud Operator with one of the earlier per-client installers, [remove that copy first](plugins/cloud-operator/README.md#remove-an-earlier-install-first). In these agents, the plugin replaces the `gemini-cloud-assist-mcp` plugin at the root of this repository, so don't install both.
+To install it, see [`plugins/cloud-operator`](plugins/cloud-operator/README.md#step-3-install-the-plugin). If you installed Cloud Operator with one of the earlier per-client installers, [remove that copy first](plugins/cloud-operator/README.md#step-2-remove-an-earlier-install). In these agents, the plugin replaces the `gemini-cloud-assist-mcp` plugin at the root of this repository, so don't install both.
 
 ### Antigravity
 

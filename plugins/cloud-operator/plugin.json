@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "cloud-operator",
   "displayName": "Cloud Operator",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Routes Google Cloud requests about your projects (questions, architecture, Terraform and Kubernetes review, rollouts, incidents, cost) to the Cloud Operator Agent through the Autocloud MCP server, signed in with Application Default Credentials.",
   "author": {
     "name": "Google LLC",
