@@ -17,7 +17,7 @@
 
 import type { Plugin } from "@opencode/plugin";
 import { GoogleAuth } from "./google-auth.ts";
-import { type McpServer, readAlwaysOnRules, readMcpServers, readSkills } from "./plugin-files.ts";
+import { readAlwaysOnRules, readMcpServers, readSkills } from "./plugin-files.ts";
 
 const ID = "cloud-operator";
 
@@ -38,19 +38,17 @@ const plugin: Plugin.Plugin = {
     await auth.start();
     auth.startRenewing();
     if (auth.error) {
-      console.warn(`${ID}: Google Cloud MCP servers are unavailable until Application Default Credentials work: ${auth.error}`);
+      console.warn(`${ID}: Cloud Operator calls will fail until Application Default Credentials work: ${auth.error}`);
     }
-
-    // A server needs either ADC headers or a static header, such as the
-    // usage attribution header. Re-evaluated on every reload, so a server
-    // appears once credentials start working.
-    const usable = (server: McpServer) =>
-      Boolean(auth.headers.Authorization) || Object.keys(server.headers).length > 0;
 
     await ctx.mcp.transform((editor) => {
       for (const server of servers) {
         // A server of the same name in the user's own config wins.
-        if (editor.get(server.name) || !usable(server)) continue;
+        if (editor.get(server.name)) continue;
+        // Registered even without ADC, on purpose: the first call then fails
+        // with an authentication error, and the cloud-operator skill tells the
+        // user to run gcloud auth application-default login. Every reload
+        // runs this again, so a new token replaces the old headers.
         editor.set(server.name, {
           type: "remote",
           url: server.url,
@@ -78,6 +76,9 @@ const plugin: Plugin.Plugin = {
           id: skill.name,
           name: skill.name,
           description: skill.description,
+          // OpenCode offers a skill to the model unless this is false; set it
+          // so the skill keeps working if that default changes.
+          autoinvoke: true,
           path: skill.path,
           content: skill.body,
         } as Parameters<typeof editor.add>[0]);

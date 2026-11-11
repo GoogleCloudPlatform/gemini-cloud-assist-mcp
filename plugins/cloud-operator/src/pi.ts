@@ -49,9 +49,9 @@ export default async function googleCloudDeveloper(pi: ExtensionAPI): Promise<vo
 
   const register = () => {
     for (const server of servers) {
-      // A server needs either ADC headers or a static header, such as the
-      // usage attribution header.
-      if (!auth.headers.Authorization && Object.keys(server.headers).length === 0) continue;
+      // Registered even without ADC, on purpose: the first call then fails
+      // with an authentication error, and the cloud-operator skill tells the
+      // user to run gcloud auth application-default login.
       pi.registerMcpServer(server.name, serverConfig(server, auth.headers));
     }
   };
@@ -75,7 +75,7 @@ export default async function googleCloudDeveloper(pi: ExtensionAPI): Promise<vo
     auth.startRenewing();
     if (auth.error) {
       ctx.ui.notify(
-        `${ID}: Google Cloud MCP servers are unavailable until Application Default Credentials work: ${auth.error}`,
+        `${ID}: Cloud Operator calls will fail until Application Default Credentials work: ${auth.error}`,
         "warning",
       );
     }
