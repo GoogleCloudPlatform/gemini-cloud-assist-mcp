@@ -323,7 +323,7 @@ mcp_optional_startup_grace_ms = 0
 
 [mcp_servers.autocloud]
 url = "https://geminicloudassist.googleapis.com/mcp/autocloud"
-http_headers = { "X-Goog-Api-Client" = "cloud-operator/0.0.5 agent-skills/1.0 (skill:cloud-operator; version:1.1.0; plugin:cloud-operator)" }
+http_headers = { "X-Goog-Api-Client" = "cloud-operator/0.0.6 agent-skills/1.0 (skill:cloud-operator; version:1.1.1; plugin:cloud-operator)" }
 http_headers_helper = '"/Users/<YOU>/.codex/bin/adc-headers"'
 tool_timeout_sec = 1200
 ```
@@ -494,7 +494,7 @@ commands.
 
 > [!NOTE] The `cloud-operator` skill prefixes each `gcloud` command it runs
 > with a usage attribution variable, for example
-> `CLOUDSDK_METRICS_REQUEST_ATTRIBUTION="agent-skills/1.0 (skill:cloud-operator; version:1.1.0)" gcloud config get-value project`.
+> `CLOUDSDK_METRICS_REQUEST_ATTRIBUTION="agent-skills/1.0 (skill:cloud-operator; version:1.1.1)" gcloud config get-value project`.
 > Clients that match permission rules against the start of a command, such as
 > Claude Code, need rules that include the prefix: a rule for
 > `gcloud config get-value` alone doesn't match. For example, in Claude Code:
