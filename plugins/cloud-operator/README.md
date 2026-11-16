@@ -5,7 +5,7 @@ Agent**, which designs, reviews, operates and troubleshoots infrastructure in
 your Google Cloud projects.
 
 Built on the open [Agent Plugins specification](https://agent-plugins.org/),
-this plugin bundles the `cloud-operator` skill and the configuration for the
+this plugin bundles the `cloud-operator` skills and the configuration for the
 **Autocloud** MCP server into a single portable package.
 
 --------------------------------------------------------------------------------
@@ -354,13 +354,15 @@ Restart Codex. In the Codex CLI, `/mcp` lists the server's tools.
 
 ## Step 5: Make your first call
 
-Ask your agent to **check Cloud Operator**. It makes one harmless call and
-tells you the project and agent it used.
+Ask your agent to **set up Cloud Operator** (`/cloud-operator:setup` in Claude
+Code and Antigravity). It asks which project your operator agent is in, checks
+that the agent answers or helps you create one, remembers the project, and
+offers to share your existing Google Cloud context.
 
-The first time you ask about your Google Cloud projects, your agent asks which
-project your operator agent is in, helps you create the agent if you don't have
-one, and remembers your choice. To do this up front, ask your agent to **set up
-Cloud Operator** (`/cloud-operator:setup` in Claude Code and Antigravity).
+If you skip setup, your agent asks the same questions the first time you ask
+about your Google Cloud projects. To check the connection later, ask it to
+**check Cloud Operator**: it makes one call and tells you the project and agent
+it used.
 
 To create the operator agent yourself, open
 `https://console.cloud.google.com/autocloud/home?project=<YOUR_PROJECT_ID>`,
@@ -456,7 +458,7 @@ point `~/.codex/config.toml` at the same helper
 ([Step 4](#codex-add-the-server-to-configtoml)).
 
 In OpenCode and Pi, the plugin's code in `src/` (named by `package.json`) adds
-the server and the skill, reading the server from `.mcp.json`. It runs the
+the server and the skills, reading the server from `.mcp.json`. It runs the
 same helper and renews the token every 45 minutes, but never during a running
 Cloud Operator call.
 

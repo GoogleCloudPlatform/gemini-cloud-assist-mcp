@@ -22,6 +22,8 @@ This repository connects AI coding agents to **Cloud Operator**, the operator ag
 The [`cloud-operator` plugin](plugins/cloud-operator/README.md) adds Cloud Operator to your agent. It installs:
 
 - the **`cloud-operator` skill**, which tells your agent when to hand Google Cloud work to Cloud Operator and how to send it the context it needs;
+- the **`setup` skill**, which finds or creates your operator agent, checks that it answers and remembers its project;
+- the **`share-context` skill**, which shares the Google Cloud context you and your team already have with the operator's memory, after you review it;
 - the **`autocloud` MCP server** (`https://geminicloudassist.googleapis.com/mcp/autocloud`), signed in with your Google credentials (Application Default Credentials).
 
 ## Install
